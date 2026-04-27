@@ -414,7 +414,10 @@ export default function AdminDashboard() {
                          {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleDateString() : ''}
                       </td>
                       <td className="p-4 text-right">
-                        <button onClick={() => handleDeleteNews(item.id)} className="p-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                        <Link to={`/${item.type}/${item.id}`} target="_blank" className="p-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition inline-block mr-2" title="Preview">
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <button onClick={() => handleDeleteNews(item.id)} className="p-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition inline-block" title="Delete"><Trash2 className="w-4 h-4" /></button>
                       </td>
                     </tr>
                   ))}

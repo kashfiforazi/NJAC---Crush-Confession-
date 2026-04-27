@@ -25,36 +25,50 @@ export default function PostDetails() {
       if (!id) return;
       try {
         const docRef = doc(db, 'posts', id);
-        const docSnap = await getDoc(docRef);
         
-        if (docSnap.exists()) {
-          setPost({ id: docSnap.id, ...docSnap.data() });
-          
-          if (docSnap.data().status === 'published') {
-            await updateDoc(docRef, {
-              viewsCount: increment(1)
-            });
-          }
-        }
-
-        // Fetch comments
         const commentsQ = query(
           collection(db, 'comments'),
           where('postId', '==', id),
           orderBy('createdAt', 'asc')
         );
-        const commentsSnap = await getDocs(commentsQ);
-        setComments(commentsSnap.docs.map(d => ({id: d.id, ...d.data()})));
 
-        // Fetch user reaction
+        let reactionRef = null;
         if (user) {
-          const reactionRef = doc(db, 'posts', id, 'reactions', user.uid);
-          const reactionSnap = await getDoc(reactionRef);
+          reactionRef = doc(db, 'posts', id, 'reactions', user.uid);
+        }
+
+        const promises: Promise<any>[] = [
+          getDoc(docRef),
+          getDocs(commentsQ)
+        ];
+        
+        if (reactionRef) {
+          promises.push(getDoc(reactionRef));
+        }
+
+        const results = await Promise.all(promises);
+        const docSnap = results[0];
+        const commentsSnap = results[1];
+        
+        if (docSnap.exists()) {
+          setPost({ id: docSnap.id, ...docSnap.data() });
+          
+          if (docSnap.data().status === 'published') {
+            // Do not await view increment so it doesn't block UI rendering
+            updateDoc(docRef, {
+              viewsCount: increment(1)
+            }).catch(e => console.error('Failed to increment view', e));
+          }
+        }
+
+        setComments(commentsSnap.docs.map((d: any) => ({id: d.id, ...d.data()})));
+
+        if (reactionRef && results[2]) {
+          const reactionSnap = results[2];
           if (reactionSnap.exists()) {
             setUserReaction(reactionSnap.data().type);
           }
         }
-
       } catch (error) {
         console.error(error);
         toast.error('Could not load post');

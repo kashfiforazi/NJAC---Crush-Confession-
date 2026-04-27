@@ -18,25 +18,27 @@ export default function Home() {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const q = query(
+        const qPosts = query(
           collection(db, 'posts'),
           where('status', '==', 'published'),
           orderBy('createdAt', 'desc'),
           limit(3)
         );
-        const snapshot = await getDocs(q);
+        const qNews = query(collection(db, 'news_blogs'), where('type', '==', 'news'), orderBy('createdAt', 'desc'), limit(5));
+        const qBlogs = query(collection(db, 'news_blogs'), where('type', '==', 'blog'), orderBy('createdAt', 'desc'), limit(5));
+
+        const [snapshot, newsSnap, blogsSnap] = await Promise.all([
+          getDocs(qPosts),
+          getDocs(qNews),
+          getDocs(qBlogs)
+        ]);
+
         const fetchedPosts = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
         setPosts(fetchedPosts);
-
-        const qNews = query(collection(db, 'news_blogs'), where('type', '==', 'news'), orderBy('createdAt', 'desc'), limit(5));
-        const newsSnap = await getDocs(qNews);
         setNews(newsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        
-        const qBlogs = query(collection(db, 'news_blogs'), where('type', '==', 'blog'), orderBy('createdAt', 'desc'), limit(5));
-        const blogsSnap = await getDocs(qBlogs);
         setBlogs(blogsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -291,9 +293,9 @@ function NewsBlogCard({ item }: { item: any, key?: any }) {
   }
 
   return (
-    <div className="glass-card overflow-hidden hover:shadow-xl transition-shadow">
+    <Link to={`/${item.type}/${item.id}`} className="block glass-card overflow-hidden hover:shadow-xl transition-shadow group">
       {content}
-    </div>
+    </Link>
   );
 }
 

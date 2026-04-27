@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
@@ -81,8 +82,8 @@ function ItemCard({ item }: { item: any, key?: any }) {
   }
 
   return (
-    <div className="glass-card p-4 overflow-hidden hover:shadow-xl transition-shadow">
+    <Link to={`/${item.type}/${item.id}`} className="block glass-card p-4 overflow-hidden hover:shadow-xl transition-shadow group">
       {content}
-    </div>
+    </Link>
   );
 }

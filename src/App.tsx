@@ -17,6 +17,7 @@ const History = lazy(() => import('./pages/History'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const About = lazy(() => import('./pages/About'));
 const GenericNewsBlog = lazy(() => import('./pages/GenericNewsBlog'));
+const NewsBlogDetails = lazy(() => import('./pages/NewsBlogDetails'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 
@@ -50,7 +51,9 @@ export default function App() {
                   <Route path="about" element={<About />} />
                   <Route path="history" element={<History />} />
                   <Route path="news" element={<GenericNewsBlog type="news" />} />
+                  <Route path="news/:id" element={<NewsBlogDetails type="news" />} />
                   <Route path="blog" element={<GenericNewsBlog type="blog" />} />
+                  <Route path="blog/:id" element={<NewsBlogDetails type="blog" />} />
                   <Route path="privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="terms" element={<TermsOfService />} />
                   <Route path="*" element={<NotFound />} />
