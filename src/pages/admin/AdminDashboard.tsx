@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDoc, setDoc, limit } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { db, auth } from '../../lib/firebase';
 import toast from 'react-hot-toast';
@@ -46,12 +46,13 @@ export default function AdminDashboard() {
       if (!isAdmin) return;
       try {
         setFetching(true);
-        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+        // Add limit to avoid fetching too many records at once and slowing down the app
+        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(100));
         const snapshot = await getDocs(q);
         setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         
         // Fetch news/blogs
-        const q2 = query(collection(db, 'news_blogs'), orderBy('createdAt', 'desc'));
+        const q2 = query(collection(db, 'news_blogs'), orderBy('createdAt', 'desc'), limit(50));
         const sn2 = await getDocs(q2);
         setNewsBlogs(sn2.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {

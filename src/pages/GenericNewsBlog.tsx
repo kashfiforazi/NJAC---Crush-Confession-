@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -13,7 +13,8 @@ export default function GenericNewsBlog({ type }: { type: 'news' | 'blog' }) {
         const q = query(
           collection(db, 'news_blogs'),
           where('type', '==', type),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'desc'),
+          limit(50)
         );
         const snapshot = await getDocs(q);
         setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));

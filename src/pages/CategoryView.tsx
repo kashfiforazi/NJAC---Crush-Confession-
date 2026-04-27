@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { collection, query, where, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Heart, MessageCircle, Eye, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -24,7 +24,8 @@ export default function CategoryView() {
           collection(db, 'posts'),
           where('status', '==', 'published'),
           where('category', '==', titleCaseCategory),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'desc'),
+          limit(50)
         );
         const snapshot = await getDocs(q);
         setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));

@@ -9,7 +9,51 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;600;700;800&family=Caveat:wght@600&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        .initial-loader-wrapper {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          width: 100vw;
+          background-color: #0f172a; /* matches a dark slate for a cool default */
+          flex-direction: column;
+          gap: 20px;
+        }
+        .initial-loader {
+          width: 48px;
+          height: 48px;
+          border: 5px solid #fff;
+          border-bottom-color: #f97316; /* primary color */
+          border-radius: 50%;
+          display: inline-block;
+          box-sizing: border-box;
+          animation: rotation 1s linear infinite;
+        }
+        .initial-loader-logo {
+          color: #fff;
+          font-family: 'Outfit', sans-serif;
+          font-size: 24px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes rotation {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0% { opacity: 0.8; transform: scale(0.98); }
+          50% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 0.8; transform: scale(0.98); }
+        }
+      </style>
+      <div class="initial-loader-wrapper">
+        <div class="initial-loader"></div>
+        <div class="initial-loader-logo">NJAC<span style="color: #f97316;"> Confession</span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
