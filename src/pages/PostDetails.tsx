@@ -6,10 +6,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { Heart, Send, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 
 export default function PostDetails() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [post, setPost] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,6 +178,14 @@ export default function PostDetails() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
+      <Helmet>
+        <title>{post.title || 'Confession'} | NJAC</title>
+        <meta name="description" content={post.content?.substring(0, 160) || 'Read this confession on NJAC'} />
+        <meta property="og:title" content={post.title || 'Confession'} />
+        <meta property="og:description" content={post.content?.substring(0, 160) || 'Read this confession'} />
+        {post.imageUrl && <meta property="og:image" content={post.imageUrl} />}
+      </Helmet>
+
       {/* Post Content */}
       <div className="glass-card p-8 md:p-12">
         <div className="flex justify-between items-center mb-6">
@@ -323,7 +332,7 @@ export default function PostDetails() {
                     {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                   </span>
                 </div>
-                {user && (user.uid === comment.authorUid) && (
+                {user && (user.uid === comment.authorUid || isAdmin) && (
                   <div className="hidden group-hover:flex items-center gap-2">
                     <button onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.content); }} className="p-1.5 text-slate-500 hover:text-primary-500 bg-slate-100 hover:bg-primary-50 rounded dark:bg-slate-800 dark:hover:bg-slate-700 transition"><Edit className="w-4 h-4" /></button>
                     <button onClick={() => handleDeleteComment(comment.id)} className="p-1.5 text-slate-500 hover:text-red-500 bg-slate-100 hover:bg-red-50 rounded dark:bg-slate-800 dark:hover:bg-slate-700 transition"><Trash2 className="w-4 h-4" /></button>

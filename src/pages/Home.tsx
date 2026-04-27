@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { Helmet } from 'react-helmet-async';
 
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -73,6 +74,14 @@ export default function Home() {
 
   return (
     <div className="space-y-12">
+      <Helmet>
+        <title>Home | NJAC - Crush & Confession</title>
+        <meta name="description" content="Welcome to the NJAC Crush & Confession website. Share your secret feelings anonymously and see what others are saying." />
+        <meta name="keywords" content="NJAC, confession, crush, anonymous, college, university" />
+        <meta property="og:title" content="NJAC - Crush & Confession" />
+        <meta property="og:description" content="Share your secret feelings anonymously." />
+      </Helmet>
+
       {/* Hero Section */}
       <section className="relative text-center py-24 px-4 rounded-[2.5rem] overflow-hidden glass shadow-2xl border border-white/20 dark:border-slate-800/50 bg-slate-100 dark:bg-[#3b251b] text-slate-900 dark:text-white">
         {/* Background Effects */}
