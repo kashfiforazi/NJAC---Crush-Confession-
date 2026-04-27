@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // Validation definitions
+    function isPostValid(data) {
+      return data.keys().hasAll(['title', 'content', 'category', 'status', 'createdAt', 'viewsCount', 'authorUid']) 
+          && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.category is string && data.category.size() > 0 && data.category.size() <= 50
+          && data.status in ['pending', 'published', 'rejected']
+          && data.createdAt is timestamp
+          && data.viewsCount is number
+          && data.authorUid == request.auth.uid
+          && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50))
+          && (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 1000));
+    }
+
+    function isCommentValid(data) {
+       return data.keys().hasAll(['postId', 'authorUid', 'content', 'createdAt'])
+          && data.postId is string
+          && data.authorUid == request.auth.uid
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
+          && data.createdAt is timestamp
+          && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50));
+    }
+
+    // Rules
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      // No one can write to admins via client sdk safely, must be bootstrapped manually or via console.
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      // Read: published posts are public, pending/rejected only for admins
+      allow read: if (existing().status == 'published') || isAdmin();
+      
+      // Create: any signed in user (anonymous) can create a pending post
+      allow create: if isSignedIn() 
+                    && isPostValid(incoming()) 
+                    && incoming().status == 'pending'
+                    && incoming().viewsCount == 0;
+      
+      // Update: Admins can update anything. Users can only increment views and reactions, or edit it if we allowed (we don't)
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        // Action: Increment Views
+        (incoming().diff(existing()).affectedKeys().hasOnly(['viewsCount']) && incoming().viewsCount > existing().viewsCount) ||
+        // Action: Update Reactions 
+        (incoming().diff(existing()).affectedKeys().hasOnly(['reactionCounts']))
+      );
+
+      allow delete: if isAdmin();
+
+      match /reactions/{userId} {
+        allow read: if true;
+        allow create, update: if isSignedIn() 
+                           && userId == request.auth.uid
+                           && incoming().keys().hasAll(['type', 'createdAt'])
+                           && incoming().type in ['like', 'love', 'sad', 'wow']
+                           && incoming().createdAt is timestamp;
+        allow delete: if isSignedIn() && userId == request.auth.uid;
+      }
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isSignedIn() 
+                    && isCommentValid(incoming())
+                    && existsAfter(/databases/$(database)/documents/posts/$(incoming().postId));
+      allow delete: if isAdmin() || (isSignedIn() && existing().authorUid == request.auth.uid);
+    }
+  }
+}

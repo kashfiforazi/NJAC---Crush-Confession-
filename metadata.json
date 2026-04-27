@@ -1,0 +1,6 @@
+{
+  "name": "NJAC - Crush & Confession",
+  "description": "A modern responsive confession website where users can submit anonymous confessions. Includes admin panel, post reactions, comments, categories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
