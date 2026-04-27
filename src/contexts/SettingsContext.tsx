@@ -22,10 +22,11 @@ interface SiteSettings {
 }
 
 const defaultSettings: SiteSettings = {
-  headerTitle: 'NJAC Confession',
-  footerTitle: 'NJAC Confession',
-  headerLogo: '', // We can leave it blank initially so the heart icon shows, or put a placeholder if desired. Let's leave blank to show the Heart icon fallback.
-  aboutUsText: 'Welcome to NJAC Confession...',
+  headerTitle: 'NJAC - Crush & Confession',
+  footerTitle: 'NJAC - Crush & Confession',
+  headerLogo: 'https://i.ibb.co/Vckn3C6D/1000032660.png',
+  footerLogo: 'https://i.ibb.co/Vckn3C6D/1000032660.png',
+  aboutUsText: 'Welcome to NJAC - Crush & Confession...',
 };
 
 const SettingsContext = createContext<SiteSettings>(defaultSettings);

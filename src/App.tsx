@@ -22,9 +22,12 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 
 const FallbackLoader = () => (
   <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#0f172a] flex-col gap-4">
-    <div className="w-12 h-12 border-4 border-white border-b-[#f97316] rounded-full animate-spin"></div>
-    <div className="text-white font-heading text-2xl font-bold animate-pulse tracking-wide">
-      NJAC<span className="text-[#f97316]"> Confession</span>
+    <div className="w-16 h-16 relative flex justify-center items-center">
+      <div className="absolute inset-0 border-4 border-slate-700 border-t-[#f97316] rounded-full animate-spin"></div>
+      <img src="https://i.ibb.co/Vckn3C6D/1000032660.png" alt="Logo" className="w-8 h-8 object-contain animate-pulse" />
+    </div>
+    <div className="text-white font-heading text-2xl font-bold tracking-wide mt-2">
+      NJAC <span className="text-[#f97316]"> - Crush & Confession</span>
     </div>
   </div>
 );
