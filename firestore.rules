@@ -25,6 +25,7 @@ service cloud.firestore {
           && data.authorUid == request.auth.uid
           && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50))
           && (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 1000))
+          && (!data.keys().hasAny(['slug']) || (data.slug is string && data.slug.size() <= 200))
           && (!data.keys().hasAny(['reactionCounts']) || data.reactionCounts is map);
     }
 
@@ -34,7 +35,8 @@ service cloud.firestore {
           && data.authorUid == request.auth.uid
           && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
           && data.createdAt is timestamp
-          && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50));
+          && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50))
+          && (!data.keys().hasAny(['parentId']) || (data.parentId is string));
     }
 
     function isNewsBlogValid(data) {
@@ -48,7 +50,21 @@ service cloud.firestore {
           && (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 1000));
     }
 
+    function isUserValid(data) {
+      return data.keys().hasAll(['displayName', 'createdAt'])
+          && data.displayName is string
+          && data.createdAt is timestamp
+          && (!data.keys().hasAny(['email']) || data.email is string || data.email == null)
+          && (!data.keys().hasAny(['photoURL']) || data.photoURL is string || data.photoURL == null);
+    }
+
     // Rules
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.auth.uid == userId && isUserValid(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+    }
+
     match /admins/{userId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && incoming().password == 'NJAC26' && userId == request.auth.uid;
@@ -71,8 +87,8 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      // Read: published posts are public, pending/rejected only for admins
-      allow read: if (existing().status == 'published') || isAdmin();
+      // Read: published posts are public, pending/rejected only for admins and the author
+      allow read: if (existing().status == 'published') || isAdmin() || (isSignedIn() && existing().authorUid == request.auth.uid);
       
       // Create: any signed in user (anonymous) can create a pending post, admins can create any valid post
       allow create: if (isSignedIn() && isPostValid(incoming()) && incoming().status == 'pending' && incoming().viewsCount == 0)

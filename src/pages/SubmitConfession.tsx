@@ -34,6 +34,11 @@ export default function SubmitConfession() {
 
     setLoading(true);
     try {
+      const generatedSlug = (formData.title.trim() ? formData.title.trim() : formData.content.substring(0, 20))
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '') + '-' + Date.now().toString(36);
+
       const postPayload: any = {
         content: formData.content,
         category: formData.category,
@@ -43,6 +48,7 @@ export default function SubmitConfession() {
         viewsCount: 0,
         reactionCounts: { like: 0, love: 0, sad: 0, wow: 0, haha: 0 },
         authorUid: user.uid,
+        slug: generatedSlug,
       };
 
       if (formData.title.trim()) {

@@ -9,7 +9,7 @@ import { Heart, Send, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 
 export default function PostDetails() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const { user, isAdmin } = useAuth();
   const [post, setPost] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
@@ -20,26 +20,72 @@ export default function PostDetails() {
   const [userReaction, setUserReaction] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  
+  // also need limit from fs
+  const [actualPostId, setActualPostId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      if (!id) return;
+      if (!slug) return;
       try {
-        const docRef = doc(db, 'posts', id);
+        let postDoc: any = null;
+        let pId = slug;
+
+        // Try querying by slug using different rules-compliant queries
+        const { limit } = await import('firebase/firestore');
+
+        const slugPromises = [];
+        // 1. Published post (works for everyone)
+        slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), where('status', '==', 'published'), limit(1))).catch(() => null));
+        
+        // 2. Author's own post
+        if (user) {
+          slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), where('authorUid', '==', user.uid), limit(1))).catch(() => null));
+        }
+        
+        // 3. Admin query
+        if (isAdmin) {
+          slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), limit(1))).catch(() => null));
+        }
+
+        const slugResults = await Promise.all(slugPromises);
+        for (const res of slugResults) {
+          if (res && !res.empty) {
+            postDoc = res.docs[0];
+            pId = postDoc.id;
+            break;
+          }
+        }
+
+        if (!postDoc) {
+          // Fallback to fetch by ID if slug not found
+          const docRef = doc(db, 'posts', slug);
+          const iSnap = await getDoc(docRef);
+          if (iSnap.exists()) {
+            postDoc = iSnap;
+            pId = iSnap.id;
+          }
+        }
+
+        setActualPostId(pId);
+        if (!postDoc) throw new Error('Post not found');
+
+        const docRef = doc(db, 'posts', pId);
         
         const commentsQ = query(
           collection(db, 'comments'),
-          where('postId', '==', id),
+          where('postId', '==', pId),
           orderBy('createdAt', 'asc')
         );
 
         let reactionRef = null;
         if (user) {
-          reactionRef = doc(db, 'posts', id, 'reactions', user.uid);
+          reactionRef = doc(db, 'posts', pId, 'reactions', user.uid);
         }
 
         const promises: Promise<any>[] = [
-          getDoc(docRef),
           getDocs(commentsQ)
         ];
         
@@ -48,24 +94,20 @@ export default function PostDetails() {
         }
 
         const results = await Promise.all(promises);
-        const docSnap = results[0];
-        const commentsSnap = results[1];
+        const commentsSnap = results[0];
         
-        if (docSnap.exists()) {
-          setPost({ id: docSnap.id, ...docSnap.data() });
-          
-          if (docSnap.data().status === 'published') {
-            // Do not await view increment so it doesn't block UI rendering
-            updateDoc(docRef, {
-              viewsCount: increment(1)
-            }).catch(e => console.error('Failed to increment view', e));
-          }
+        setPost({ id: postDoc.id, ...postDoc.data() });
+        
+        if (postDoc.data().status === 'published') {
+          updateDoc(docRef, {
+            viewsCount: increment(1)
+          }).catch(e => console.error('Failed to increment view', e));
         }
 
         setComments(commentsSnap.docs.map((d: any) => ({id: d.id, ...d.data()})));
 
-        if (reactionRef && results[2]) {
-          const reactionSnap = results[2];
+        if (reactionRef && results[1]) {
+          const reactionSnap = results[1];
           if (reactionSnap.exists()) {
             setUserReaction(reactionSnap.data().type);
           }
@@ -78,17 +120,17 @@ export default function PostDetails() {
       }
     }
     fetchData();
-  }, [id, user]);
+  }, [slug, user]);
 
   const handleReact = async (type: 'like' | 'love' | 'haha' | 'sad' | 'wow') => {
-    if (!user || !id || !post) return;
+    if (!user || !actualPostId || !post) return;
     
     // Optimistic UI update could go here
     try {
       if (userReaction === type) return; // Already reacted this way
       
-      const reactionRef = doc(db, 'posts', id, 'reactions', user.uid);
-      const postRef = doc(db, 'posts', id);
+      const reactionRef = doc(db, 'posts', actualPostId, 'reactions', user.uid);
+      const postRef = doc(db, 'posts', actualPostId);
 
       // We update the reaction counts using increment
       const updates: any = {};
@@ -122,12 +164,12 @@ export default function PostDetails() {
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !id || !newComment.trim()) return;
+    if (!user || !actualPostId || !newComment.trim()) return;
 
     setSubmitting(true);
     try {
       const commentData = {
-        postId: id,
+        postId: actualPostId,
         authorUid: user.uid,
         content: newComment.trim(),
         nickname: commenterName.trim() || 'Anonymous',
@@ -141,6 +183,33 @@ export default function PostDetails() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to add comment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitReply = async (commentId: string) => {
+    if (!user || !actualPostId || !replyText.trim()) return;
+
+    setSubmitting(true);
+    try {
+      const commentData = {
+        postId: actualPostId,
+        parentId: commentId,
+        authorUid: user.uid,
+        content: replyText.trim(),
+        nickname: commenterName.trim() || 'Anonymous',
+        createdAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, 'comments'), commentData);
+      setComments([...comments, { id: docRef.id, ...commentData, createdAt: new Date() }]);
+      setReplyingToId(null);
+      setReplyText('');
+      toast.success('Reply added!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to add reply');
     } finally {
       setSubmitting(false);
     }
@@ -320,7 +389,7 @@ export default function PostDetails() {
         </form>
 
         <div className="space-y-6">
-          {comments.map((comment, i) => (
+          {comments.filter(c => !c.parentId).map((comment, i) => (
             <div key={comment.id || i} className="pb-6 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0 relative group">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
@@ -354,8 +423,58 @@ export default function PostDetails() {
                   </div>
                 </div>
               ) : (
-                <p className="text-slate-700 dark:text-slate-300 ml-10">{comment.content}</p>
+                <>
+                  <p className="text-slate-700 dark:text-slate-300 ml-10">{comment.content}</p>
+                  <button 
+                    onClick={() => setReplyingToId(comment.id)} 
+                    className="ml-10 mt-2 text-xs font-bold text-slate-500 hover:text-primary-500 transition"
+                  >
+                    Reply
+                  </button>
+                </>
               )}
+
+              {replyingToId === comment.id && (
+                <div className="ml-10 mt-4 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Write a reply..."
+                    className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                  />
+                  <button 
+                    onClick={() => submitReply(comment.id)}
+                    disabled={submitting || !replyText.trim()}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-xl font-bold hover:bg-primary-600 disabled:opacity-50 text-sm"
+                  >
+                    Send
+                  </button>
+                </div>
+              )}
+
+              {/* Nested Replies */}
+              {comments.filter(reply => reply.parentId === comment.id).map(reply => (
+                <div key={reply.id} className="ml-10 mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 relative group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold text-xs">
+                        {reply.nickname?.[0]?.toUpperCase() || 'A'}
+                      </div>
+                      <span className="font-bold text-sm">{reply.nickname || 'Anonymous'}</span>
+                      <span className="text-xs text-slate-400">
+                        {reply.createdAt?.toDate ? formatDistanceToNow(reply.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                      </span>
+                    </div>
+                    {user && (user.uid === reply.authorUid || isAdmin) && (
+                      <div className="hidden group-hover:flex items-center gap-2">
+                        <button onClick={() => handleDeleteComment(reply.id)} className="p-1 text-slate-400 hover:text-red-500 transition"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-slate-700 dark:text-slate-300 text-sm">{reply.content}</p>
+                </div>
+              ))}
             </div>
           ))}
         </div>

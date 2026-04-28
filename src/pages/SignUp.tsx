@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { Helmet } from 'react-helmet-async';
 
-export default function Login() {
+export default function SignUp() {
   const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
@@ -19,6 +20,33 @@ export default function Login() {
       navigate('/profile');
     }
   }, [user, navigate]);
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email || !password) return toast.error('Please fill all fields');
+    if (password.length < 6) return toast.error('Password must be at least 6 characters');
+    setLoading(true);
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(result.user, { displayName: name });
+      
+      // Save user to db
+      await setDoc(doc(db, 'users', result.user.uid), {
+        displayName: name,
+        email: result.user.email,
+        photoURL: null,
+        createdAt: new Date(),
+      });
+
+      toast.success('Account created successfully');
+      navigate('/profile');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Failed to sign up');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -47,32 +75,27 @@ export default function Login() {
     }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return toast.error('Please enter email and password');
-    setLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast.success('Logged in successfully');
-      navigate('/profile');
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || 'Failed to login');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="max-w-md mx-auto py-20 px-4">
       <Helmet>
-        <title>Login | NJAC</title>
+        <title>Sign Up | NJAC</title>
       </Helmet>
       <div className="glass-card p-8 rounded-3xl text-center shadow-xl">
-        <h1 className="text-3xl font-bold font-heading mb-2">Welcome Back</h1>
-        <p className="text-slate-500 mb-8">Sign in to your account to continue.</p>
+        <h1 className="text-3xl font-bold font-heading mb-2">Create Account</h1>
+        <p className="text-slate-500 mb-8">Join NJAC Confessions today.</p>
         
-        <form onSubmit={handleEmailLogin} className="space-y-4 mb-6 text-left">
+        <form onSubmit={handleSignUp} className="space-y-4 mb-6 text-left">
+          <div>
+            <label className="block text-sm font-medium mb-1">Full Name</label>
+            <input 
+              type="text" 
+              placeholder="John Doe"
+              className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
             <input 
@@ -88,7 +111,7 @@ export default function Login() {
             <label className="block text-sm font-medium mb-1">Password</label>
             <input 
               type="password" 
-              placeholder="Enter password"
+              placeholder="Choose a strong password"
               className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -100,7 +123,7 @@ export default function Login() {
             disabled={loading}
             className="w-full py-4 mt-2 bg-primary-500 text-white font-bold rounded-xl shadow-lg hover:shadow-primary-500/30 transition-all disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
 
@@ -123,8 +146,8 @@ export default function Login() {
           <span>Google</span>
         </button>
 
-        <p className="text-slate-500">
-          Don't have an account? <Link to="/signup" className="text-primary-500 font-medium hover:underline">Sign Up</Link>
+        <p className="text-slate-500 mt-6">
+          Already have an account? <Link to="/login" className="text-primary-500 font-medium hover:underline">Sign In</Link>
         </p>
       </div>
     </div>

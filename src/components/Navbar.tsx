@@ -7,6 +7,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
@@ -71,10 +72,15 @@ export default function Navbar() {
             <Link to="/" className="text-sm font-medium hover:text-primary-500 transition-colors">Home</Link>
             <Link to="/category/crush" className="text-sm font-medium hover:text-primary-500 transition-colors">Trending</Link>
             <Link to="/categories" className="text-sm font-medium hover:text-primary-500 transition-colors">Categories</Link>
-            <Link to="/submit" className="flex items-center space-x-1 px-5 py-2.5 rounded-full bg-primary-500 text-white text-sm font-bold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 transition-all hover:-translate-y-0.5">
+            <Link to="/submit" className="flex items-center space-x-1 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
               <Edit3 className="w-4 h-4" />
               <span>Submit</span>
             </Link>
+            {user && !user.isAnonymous ? (
+              <Link to="/profile" className="flex items-center space-x-1 px-5 py-2.5 rounded-full bg-slate-800 text-white text-sm font-bold shadow-lg transition-all hover:-translate-y-0.5">Profile</Link>
+            ) : (
+              <Link to="/login" className="flex items-center space-x-1 px-5 py-2.5 rounded-full bg-primary-500 text-white text-sm font-bold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 transition-all hover:-translate-y-0.5">Login / Sign Up</Link>
+            )}
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
             </button>
@@ -82,36 +88,48 @@ export default function Navbar() {
               <button onClick={() => setIsDesktopMoreOpen(!isDesktopMoreOpen)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <MoreVertical className="w-5 h-5 text-slate-600 dark:text-slate-300" />
               </button>
-              {isDesktopMoreOpen && (
-                <div className="absolute right-0 mt-2 w-56 py-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700">
-                  <Link to="/news" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-                    <Newspaper className="w-4 h-4 text-slate-400" />
-                    <span>News</span>
-                  </Link>
-                  <Link to="/blog" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-                    <BookOpen className="w-4 h-4 text-slate-400" />
-                    <span>Blog</span>
-                  </Link>
-                  <Link to="/history" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <span>History</span>
-                  </Link>
-                  <div className="border-t border-slate-200 dark:border-slate-700 my-2"></div>
-                  <Link to="/about" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
-                    <Info className="w-4 h-4 text-slate-400" />
-                    <span>About Us</span>
-                  </Link>
-                  {isAdmin && (
-                    <>
-                      <div className="border-t border-slate-200 dark:border-slate-700 my-2"></div>
-                      <Link to="/admin" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm text-primary-500 font-bold hover:bg-primary-50 dark:hover:bg-slate-700">
-                        <Shield className="w-4 h-4" />
-                        <span>Admin Dashboard</span>
-                      </Link>
-                    </>
-                  )}
-                </div>
-              )}
+              <AnimatePresence>
+                {isDesktopMoreOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-56 py-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700"
+                  >
+                    <Link to="/news" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700">
+                      <Newspaper className="w-4 h-4 text-blue-500" />
+                      <span>News</span>
+                    </Link>
+                    <Link to="/blog" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700">
+                      <BookOpen className="w-4 h-4 text-green-500" />
+                      <span>Blog</span>
+                    </Link>
+                    <Link to="/history" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700">
+                      <Clock className="w-4 h-4 text-purple-500" />
+                      <span>History</span>
+                    </Link>
+                    <div className="border-t border-slate-200 dark:border-slate-700 my-2"></div>
+                    <Link to="/about" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700">
+                      <Info className="w-4 h-4 text-yellow-500" />
+                      <span>About Us</span>
+                    </Link>
+                    <Link to="/leaderboard" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700">
+                      <TrendingUp className="w-4 h-4 text-rose-500" />
+                      <span>Leaderboard</span>
+                    </Link>
+                    {isAdmin && (
+                      <>
+                        <div className="border-t border-slate-200 dark:border-slate-700 my-2"></div>
+                        <Link to="/admin" onClick={() => setIsDesktopMoreOpen(false)} className="flex items-center space-x-3 px-4 py-2 text-sm text-primary-500 font-bold hover:bg-primary-50 dark:hover:bg-slate-700">
+                          <Shield className="w-4 h-4" />
+                          <span>Admin Dashboard</span>
+                        </Link>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </nav>
 
@@ -128,48 +146,71 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden glass absolute top-16 left-0 right-0 border-b border-white/20 dark:border-slate-800/50 p-4 flex flex-col space-y-4">
-            <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              <Home className="w-5 h-5 text-slate-400" />
-              <span>Home</span>
-            </Link>
-            <Link to="/category/crush" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-slate-400" />
-              <span>Trending</span>
-            </Link>
-            <Link to="/categories" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              <Grid className="w-5 h-5 text-slate-400" />
-              <span>Categories</span>
-            </Link>
-            <Link to="/news" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              <Newspaper className="w-5 h-5 text-slate-400" />
-              <span>News</span>
-            </Link>
-            <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              <BookOpen className="w-5 h-5 text-slate-400" />
-              <span>Blog</span>
-            </Link>
-            <Link to="/history" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-              <Clock className="w-5 h-5 text-slate-400" />
-              <span>History</span>
-            </Link>
-            {isAdmin && (
-              <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:bg-slate-800 rounded-lg text-primary-500 font-bold bg-primary-50/50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30">
-                <Shield className="w-5 h-5" />
-                <span>Admin Dashboard</span>
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden glass absolute top-16 left-0 right-0 border-b border-white/20 dark:border-slate-800/50 p-4 flex flex-col space-y-4 shadow-xl"
+          >
+              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Home className="w-5 h-5 text-primary-500" />
+                <span>Home</span>
               </Link>
-            )}
-            <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
-              <Info className="w-5 h-5 text-slate-400" />
-              <span>About Us</span>
-            </Link>
-            <Link to="/submit" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-center space-x-2 px-4 py-3 rounded-full bg-primary-500 text-white font-bold">
-              <Edit3 className="w-5 h-5" />
-              <span>Submit Confession</span>
-            </Link>
-        </div>
-      )}
+              <Link to="/category/crush" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <TrendingUp className="w-5 h-5 text-rose-500" />
+                <span>Trending</span>
+              </Link>
+              <Link to="/categories" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Grid className="w-5 h-5 text-indigo-500" />
+                <span>Categories</span>
+              </Link>
+              <Link to="/news" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Newspaper className="w-5 h-5 text-blue-500" />
+                <span>News</span>
+              </Link>
+              <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <BookOpen className="w-5 h-5 text-green-500" />
+                <span>Blog</span>
+              </Link>
+              <Link to="/history" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Clock className="w-5 h-5 text-purple-500" />
+                <span>History</span>
+              </Link>
+              {isAdmin && (
+                <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:bg-slate-800 rounded-lg text-primary-500 font-bold bg-primary-50/50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30">
+                  <Shield className="w-5 h-5" />
+                  <span>Admin Dashboard</span>
+                </Link>
+              )}
+              <Link to="/leaderboard" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <TrendingUp className="w-5 h-5 text-orange-500" />
+                <span>Leaderboard</span>
+              </Link>
+              <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Info className="w-5 h-5 text-yellow-500" />
+                <span>About Us</span>
+              </Link>
+              <Link to="/submit" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Edit3 className="w-5 h-5 text-emerald-500" />
+                <span>Submit Confession</span>
+              </Link>
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                {user && !user.isAnonymous ? (
+                  <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-slate-800 text-white font-bold w-full">
+                    <span>Profile</span>
+                  </Link>
+                ) : (
+                  <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-primary-500 text-white font-bold w-full mt-2">
+                    <span>Login / Sign Up</span>
+                  </Link>
+                )}
+              </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Admin Login Modal */}
       {showAdminModal && (

@@ -1,11 +1,13 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function Layout() {
   const { adClient } = useSettings();
+  const location = useLocation();
 
   useEffect(() => {
     if (adClient) {
@@ -24,7 +26,17 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col font-sans">
       <Navbar />
       <main className="flex-grow pt-20 pb-12 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       <Footer />
     </div>

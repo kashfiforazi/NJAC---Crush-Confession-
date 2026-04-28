@@ -11,6 +11,9 @@ const PostDetails = lazy(() => import('./pages/PostDetails'));
 const SubmitConfession = lazy(() => import('./pages/SubmitConfession'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const Login = lazy(() => import('./pages/Login'));
+const SignUp = lazy(() => import('./pages/SignUp'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const CategoryView = lazy(() => import('./pages/CategoryView'));
 const Categories = lazy(() => import('./pages/Categories'));
 const History = lazy(() => import('./pages/History'));
@@ -43,11 +46,14 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Layout />}>
                   <Route index element={<Home />} />
-                  <Route path="post/:id" element={<PostDetails />} />
+                  <Route path="post/:slug" element={<PostDetails />} />
                   <Route path="category/:slug" element={<CategoryView />} />
                   <Route path="categories" element={<Categories />} />
                   <Route path="submit" element={<SubmitConfession />} />
                   <Route path="login" element={<Login />} />
+                  <Route path="signup" element={<SignUp />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="leaderboard" element={<Leaderboard />} />
                   <Route path="about" element={<About />} />
                   <Route path="history" element={<History />} />
                   <Route path="news" element={<GenericNewsBlog type="news" />} />

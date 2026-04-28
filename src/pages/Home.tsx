@@ -8,6 +8,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
+import { motion } from 'framer-motion';
 
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -17,6 +18,17 @@ export default function Home() {
   const { bannerImage } = useSettings();
 
   useEffect(() => {
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      setTimeout(() => {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            toast.success('Push notifications enabled!');
+          }
+        });
+      }, 5000); // ask after 5 seconds
+    }
+    
     async function fetchPosts() {
       try {
         const qPosts = query(
@@ -150,13 +162,19 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-6">
-              {posts.map(post => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
-                  onUpdateStatus={handleUpdateStatus} 
-                  onDelete={handleDelete} 
-                />
+              {posts.map((post, index) => (
+                <motion.div 
+                  key={post.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                >
+                  <PostCard 
+                    post={post} 
+                    onUpdateStatus={handleUpdateStatus} 
+                    onDelete={handleDelete} 
+                  />
+                </motion.div>
               ))}
             </div>
           )}
@@ -166,8 +184,15 @@ export default function Home() {
             <div className="mt-12 space-y-6">
               <h2 className="text-2xl font-heading font-bold border-b border-slate-200 dark:border-slate-700 pb-2">Latest News</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {news.map(item => (
-                  <NewsBlogCard key={item.id} item={item} />
+                {news.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1, duration: 0.3 }}
+                  >
+                    <NewsBlogCard item={item} />
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -178,8 +203,15 @@ export default function Home() {
             <div className="mt-12 space-y-6">
               <h2 className="text-2xl font-heading font-bold border-b border-slate-200 dark:border-slate-700 pb-2">Recent Blogs</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {blogs.map(item => (
-                  <NewsBlogCard key={item.id} item={item} />
+                {blogs.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1, duration: 0.3 }}
+                  >
+                    <NewsBlogCard item={item} />
+                  </motion.div>
                 ))}
               </div>
             </div>

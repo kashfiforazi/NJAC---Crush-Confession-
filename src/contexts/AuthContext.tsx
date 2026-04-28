@@ -39,11 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         setUser(currentUser);
         await checkAdmin(currentUser.uid);
-        setLoading(false);
       } else {
-        // Sign in anonymously for all users to track reactions/posts
-        signInAnonymously(auth).catch(console.error);
+        setUser(null);
+        setIsAdmin(false);
       }
+      setLoading(false);
     });
 
     return unsubscribe;
