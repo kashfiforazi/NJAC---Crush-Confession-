@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { Helmet } from 'react-helmet-async';
@@ -33,15 +33,14 @@ export default function Login() {
           displayName: result.user.displayName || 'User',
           email: result.user.email,
           photoURL: result.user.photoURL || null,
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
         });
       }
       
       toast.success('Signed in with Google');
       navigate('/profile');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to log in with Google');
+      handleFirestoreError(error, OperationType.WRITE, 'users');
     } finally {
       setLoading(false);
     }
@@ -56,10 +55,19 @@ export default function Login() {
       toast.success('Logged in successfully');
       navigate('/profile');
     } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || 'Failed to login');
+      handleFirestoreError(error, OperationType.GET, 'users');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) return toast.error('Please enter your email to reset password');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success('Password reset email sent!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset email');
     }
   };
 
@@ -85,7 +93,10 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium">Password</label>
+              <button type="button" onClick={handleForgotPassword} className="text-xs font-bold text-primary-500 hover:text-primary-400">Forgot?</button>
+            </div>
             <input 
               type="password" 
               placeholder="Enter password"

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Send, AlertCircle, Image as ImageIcon } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Send, AlertCircle, Image as ImageIcon } from 'lucide-react';
 const CATEGORIES = ['Crush', 'Love', 'Secret', 'Funny', 'Advice', 'General'];
 
 export default function SubmitConfession() {
-  const { user } = useAuth();
+  const { user, isBanned } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -24,6 +24,11 @@ export default function SubmitConfession() {
     e.preventDefault();
     if (!user) {
       toast.error('You must be connected to submit.');
+      return;
+    }
+
+    if (isBanned) {
+      toast.error('Your account is banned. You cannot submit confessions.');
       return;
     }
     
@@ -60,12 +65,22 @@ export default function SubmitConfession() {
       }
 
       await addDoc(collection(db, 'posts'), postPayload);
+      
+      // Award points for posting
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          totalPoints: increment(10),
+          postsPoints: increment(10)
+        });
+      } catch (err) {
+        console.error('Failed to award points:', err);
+      }
 
-      toast.success('Your confession has been submitted for review!');
+      toast.success('Your confession has been submitted for review! +10 Points Earned.');
       navigate('/');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to submit confession.');
+      handleFirestoreError(error, OperationType.WRITE, 'posts');
     } finally {
       setLoading(false);
     }

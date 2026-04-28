@@ -1,6 +1,6 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { useSettings } from '../contexts/SettingsContext';
@@ -25,7 +25,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col font-sans">
       <Navbar />
-      <main className="flex-grow pt-20 pb-12 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="flex-grow pb-12 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

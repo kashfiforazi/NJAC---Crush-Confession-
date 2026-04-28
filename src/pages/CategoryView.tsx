@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { collection, query, where, orderBy, getDocs, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Heart, MessageCircle, Eye, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,7 +30,7 @@ export default function CategoryView() {
         const snapshot = await getDocs(q);
         setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error(error);
+        handleFirestoreError(error, OperationType.LIST, 'posts');
       } finally {
         setLoading(false);
       }
@@ -44,8 +44,7 @@ export default function CategoryView() {
       setPosts(posts.filter(p => id !== p.id));
       toast.success(`Post ${status}`);
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to update status');
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${id}`);
     }
   };
 
@@ -55,8 +54,7 @@ export default function CategoryView() {
       setPosts(posts.filter(p => p.id !== id));
       toast.success('Post deleted');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to delete post');
+      handleFirestoreError(error, OperationType.DELETE, `posts/${id}`);
     }
   };
 

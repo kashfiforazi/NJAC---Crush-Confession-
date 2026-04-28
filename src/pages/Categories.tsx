@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Link } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,7 +26,7 @@ export default function Categories() {
         const snapshot = await getDocs(q);
         setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error(error);
+        handleFirestoreError(error, OperationType.LIST, 'posts');
       } finally {
         setLoading(false);
       }

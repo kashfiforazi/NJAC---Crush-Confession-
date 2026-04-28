@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { Helmet } from 'react-helmet-async';
@@ -35,14 +35,13 @@ export default function SignUp() {
         displayName: name,
         email: result.user.email,
         photoURL: null,
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
       });
 
       toast.success('Account created successfully');
       navigate('/profile');
     } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || 'Failed to sign up');
+      handleFirestoreError(error, OperationType.WRITE, 'users');
     } finally {
       setLoading(false);
     }
@@ -61,15 +60,14 @@ export default function SignUp() {
           displayName: result.user.displayName || 'User',
           email: result.user.email,
           photoURL: result.user.photoURL || null,
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
         });
       }
       
       toast.success('Signed in with Google');
       navigate('/profile');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to log in with Google');
+      handleFirestoreError(error, OperationType.WRITE, 'users');
     } finally {
       setLoading(false);
     }

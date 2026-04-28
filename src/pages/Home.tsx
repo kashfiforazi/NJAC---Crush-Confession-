@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, limit, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Link } from 'react-router-dom';
 import { Heart, MessageCircle, Eye, Clock, Send, BadgeCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -8,13 +8,15 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
   const [blogs, setBlogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [banners, setBanners] = useState<any[]>([]);
+  const [currentBanner, setCurrentBanner] = useState(0);
   const { bannerImage } = useSettings();
 
   useEffect(() => {
@@ -53,8 +55,11 @@ export default function Home() {
         setPosts(fetchedPosts);
         setNews(newsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setBlogs(blogsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        const snapshotB = await getDocs(query(collection(db, 'banners'), orderBy('order', 'asc'), limit(3)));
+        setBanners(snapshotB.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error("Error fetching posts:", error);
+        handleFirestoreError(error, OperationType.GET, 'multiple_collections');
       } finally {
         setLoading(false);
       }
@@ -62,14 +67,21 @@ export default function Home() {
     fetchPosts();
   }, []);
 
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBanner(prev => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [banners]);
+
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
       await updateDoc(doc(db, 'posts', id), { status });
       setPosts(posts.filter(p => id !== p.id));
       toast.success(`Post ${status}`);
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to update status');
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${id}`);
     }
   };
 
@@ -79,13 +91,12 @@ export default function Home() {
       setPosts(posts.filter(p => p.id !== id));
       toast.success('Post deleted');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to delete post');
+      handleFirestoreError(error, OperationType.DELETE, `posts/${id}`);
     }
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-12 overflow-x-hidden">
       <Helmet>
         <title>Home | NJAC - Crush & Confession</title>
         <meta name="description" content="Welcome to the NJAC Crush & Confession website. Share your secret feelings anonymously and see what others are saying." />
@@ -93,6 +104,70 @@ export default function Home() {
         <meta property="og:title" content="NJAC - Crush & Confession" />
         <meta property="og:description" content="Share your secret feelings anonymously." />
       </Helmet>
+
+      {/* Slider Banner Section */}
+      {banners.length > 0 && (
+        <section className="relative h-[300px] md:h-[450px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl group">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentBanner}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0"
+            >
+              <img 
+                src={banners[currentBanner].imageUrl} 
+                alt={banners[currentBanner].title || 'Banner'} 
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+              
+              {banners[currentBanner].title && (
+                <div className="absolute bottom-10 left-10 right-10">
+                   <h2 className="text-3xl md:text-5xl font-black font-heading text-white uppercase tracking-tight drop-shadow-lg">
+                      {banners[currentBanner].title}
+                   </h2>
+                   {banners[currentBanner].link && (
+                     <a 
+                      href={banners[currentBanner].link} 
+                      className="mt-4 inline-block px-6 py-2 bg-primary-500 text-white font-bold rounded-lg uppercase tracking-widest text-xs hover:bg-primary-600 transition-colors"
+                     >
+                        Learn More
+                     </a>
+                   )}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Dots */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+             {banners.map((_, i) => (
+               <button 
+                key={i} 
+                onClick={() => setCurrentBanner(i)}
+                className={`w-2 h-2 rounded-full transition-all ${currentBanner === i ? 'w-8 bg-primary-500' : 'bg-white/40'}`}
+               />
+             ))}
+          </div>
+
+          {/* Navigation Arrows */}
+          <button 
+            onClick={() => setCurrentBanner(prev => (prev - 1 + banners.length) % banners.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            ←
+          </button>
+          <button 
+            onClick={() => setCurrentBanner(prev => (prev + 1) % banners.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            →
+          </button>
+        </section>
+      )}
 
       {/* Hero Section */}
       <section className="relative text-center py-24 px-4 rounded-[2.5rem] overflow-hidden glass shadow-2xl border border-white/20 dark:border-slate-800/50 bg-slate-100 dark:bg-[#3b251b] text-slate-900 dark:text-white">
@@ -135,7 +210,8 @@ export default function Home() {
               <Send className="w-5 h-5 -mt-1" />
               Submit Confession
             </Link>
-            <a href="#trending" className="px-8 py-4 rounded-full bg-slate-200/50 dark:bg-white/10 backdrop-blur-md border border-slate-300 dark:border-white/20 text-slate-900 dark:text-white font-bold text-lg hover:bg-slate-300/50 dark:hover:bg-white/20 transition-all">
+            <a href="#trending" className="px-8 py-4 rounded-full bg-slate-200/50 dark:bg-white/10 backdrop-blur-md border border-slate-300 dark:border-white/20 text-slate-900 dark:text-white font-bold text-lg hover:bg-slate-300/50 dark:hover:bg-white/20 transition-all flex items-center justify-center gap-2">
+              <Eye className="w-5 h-5" />
               Read Stories
             </a>
           </div>
@@ -333,8 +409,13 @@ function NewsBlogCard({ item }: { item: any, key?: any }) {
     );
   }
 
+  const getLink = () => {
+    const idOrSlug = item.slug || item.id;
+    return `/${item.type}/${idOrSlug}`;
+  };
+
   return (
-    <Link to={`/${item.type}/${item.id}`} className="block glass-card overflow-hidden hover:shadow-xl transition-shadow group">
+    <Link to={getLink()} className="block glass-card overflow-hidden hover:shadow-xl transition-shadow group">
       {content}
     </Link>
   );
@@ -359,8 +440,13 @@ function PostCard({ post, onUpdateStatus, onDelete }: { post: any, key?: any, on
     }
   };
 
+  const getPostLink = () => {
+    if (post.slug) return `/post/${post.slug}`;
+    return `/post/${post.id}`;
+  };
+
   return (
-    <Link to={`/post/${post.id}`} className="block relative glass-card p-6 hover:shadow-xl hover:-translate-y-1 transition-all group overflow-visible">
+    <Link to={getPostLink()} className="block relative glass-card p-6 hover:shadow-xl hover:-translate-y-1 transition-all group overflow-visible">
       {/* Decorative gradient corner */}
       <div className="absolute -top-10 -right-10 w-20 h-20 bg-gradient-to-bl from-primary-400/20 to-transparent blur-2xl rounded-full pointer-events-none"></div>
 

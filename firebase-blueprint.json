@@ -27,6 +27,79 @@
       },
       "required": ["title", "content", "category", "status", "createdAt", "viewsCount", "authorUid"]
     },
+    "NewsBlog": {
+      "title": "News/Blog",
+      "description": "A news item or blog post.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["news", "blog"] },
+        "url": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["title", "content", "type", "createdAt"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "An administrative notice shown on the site.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["text", "active", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the application.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "coverURL": { "type": "string" },
+        "totalPoints": { "type": "number", "description": "Combined points from games and posts." },
+        "gamePoints": { "type": "number", "description": "Points earned from playing games." },
+        "postsPoints": { "type": "number", "description": "Points earned from confessions and engagement." },
+        "isBanned": { "type": "boolean" },
+        "isVerified": { "type": "boolean" },
+        "rollNumber": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "bio": { "type": "string" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["displayName", "email", "createdAt"]
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "A follow relationship between users.",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "followingId": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["followerId", "followingId", "createdAt"]
+    },
+    "CommunityMessage": {
+      "title": "Community Message",
+      "description": "A message in the global community chat.",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["authorUid", "content", "createdAt"]
+    },
     "Reaction": {
       "title": "Reaction",
       "description": "A user's reaction to a post.",
@@ -46,6 +119,12 @@
         "authorUid": { "type": "string" },
         "content": { "type": "string" },
         "nickname": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhotoURL": { "type": "string" },
+        "authorVerified": { "type": "boolean" },
+        "isAdmin": { "type": "boolean" },
+        "isAnonymous": { "type": "boolean" },
+        "parentId": { "type": "string", "description": "ID of the parent comment if this is a reply." },
         "createdAt": { "type": "timestamp" }
       },
       "required": ["postId", "authorUid", "content", "createdAt"]
@@ -69,6 +148,22 @@
         "slug": { "type": "string" }
       },
       "required": ["name", "slug"]
+    },
+    "AdminProfile": {
+      "title": "Admin Profile",
+      "description": "The official identity of the NJAC Admin team.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "username": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "coverURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["displayName"]
     }
   },
   "firestore": {
@@ -91,6 +186,34 @@
     "/categories/{categoryId}": {
       "schema": { "$ref": "#/entities/Category" },
       "description": "Dynamic categories for posts."
+    },
+    "/news_blogs/{id}": {
+      "schema": { "$ref": "#/entities/NewsBlog" },
+      "description": "Stores news and blog posts."
+    },
+    "/notices/{id}": {
+      "schema": { "$ref": "#/entities/Notice" },
+      "description": "Stores announcements from admins."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and moderation status."
+    },
+    "/follows/{followId}": {
+      "schema": { "$ref": "#/entities/Follow" },
+      "description": "Stores following relationships."
+    },
+    "/community_messages/{messageId}": {
+      "schema": { "$ref": "#/entities/CommunityMessage" },
+      "description": "Stores global community chat messages."
+    },
+    "/banners/{bannerId}": {
+      "schema": { "type": "object", "properties": { "imageUrl": { "type": "string" }, "link": { "type": "string" }, "title": { "type": "string" }, "order": { "type": "number" } } },
+      "description": "Stores home page slider banners."
+    },
+    "/adminSettings/{id}": {
+      "schema": { "$ref": "#/entities/AdminProfile" },
+      "description": "Stores global admin identity configurations."
     }
   }
 }

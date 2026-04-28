@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
+import { Video } from 'lucide-react';
 
 export default function GenericNewsBlog({ type }: { type: 'news' | 'blog' }) {
   const [items, setItems] = useState<any[]>([]);
@@ -20,7 +21,7 @@ export default function GenericNewsBlog({ type }: { type: 'news' | 'blog' }) {
         const snapshot = await getDocs(q);
         setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error(error);
+        handleFirestoreError(error, OperationType.LIST, 'news_blogs');
       } finally {
         setLoading(false);
       }
@@ -66,8 +67,13 @@ function ItemCard({ item }: { item: any, key?: any }) {
       <div className="flex flex-col justify-center p-2">
         <h3 className="font-bold font-heading text-2xl mb-3 hover:text-primary-500 transition-colors">{item.title}</h3>
         <p className="text-slate-800 font-medium dark:text-slate-200 line-clamp-3 mb-4">{item.content}</p>
-        <div className="flex items-center text-sm text-slate-600 font-bold dark:text-slate-400 mt-auto">
+        <div className="flex items-center text-sm text-slate-600 font-bold dark:text-slate-400 mt-auto gap-4">
           <span>{item.createdAt?.toDate ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : ''}</span>
+          {item.videoUrl && (
+            <span className="flex items-center gap-1 text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 rounded text-[10px] uppercase">
+              <Video className="w-3 h-3" /> Video
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -81,8 +87,13 @@ function ItemCard({ item }: { item: any, key?: any }) {
     );
   }
 
+  const getLink = () => {
+    const idOrSlug = item.slug || item.id;
+    return `/${item.type}/${idOrSlug}`;
+  };
+
   return (
-    <Link to={`/${item.type}/${item.id}`} className="block glass-card p-4 overflow-hidden hover:shadow-xl transition-shadow group">
+    <Link to={getLink()} className="block glass-card p-4 overflow-hidden hover:shadow-xl transition-shadow group">
       {content}
     </Link>
   );

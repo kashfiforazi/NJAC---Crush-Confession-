@@ -36,6 +36,11 @@ service cloud.firestore {
           && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
           && data.createdAt is timestamp
           && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50))
+          && (!data.keys().hasAny(['authorName']) || (data.authorName is string && data.authorName.size() <= 100))
+          && (!data.keys().hasAny(['authorPhotoURL']) || (data.authorPhotoURL is string && data.authorPhotoURL.size() <= 1000))
+          && (!data.keys().hasAny(['authorVerified']) || (data.authorVerified is bool))
+          && (!data.keys().hasAny(['isAnonymous']) || (data.isAnonymous is bool))
+          && (!data.keys().hasAny(['isAdmin']) || (data.isAdmin is bool && (data.isAdmin == false || isAdmin())))
           && (!data.keys().hasAny(['parentId']) || (data.parentId is string));
     }
 
@@ -47,7 +52,8 @@ service cloud.firestore {
           && data.createdAt is timestamp
           && data.authorUid == request.auth.uid
           && (!data.keys().hasAny(['url']) || (data.url is string && data.url.size() <= 1000))
-          && (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 1000));
+          && (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 1000))
+          && (!data.keys().hasAny(['videoUrl']) || (data.videoUrl is string && data.videoUrl.size() <= 1000));
     }
 
     function isUserValid(data) {
@@ -55,19 +61,51 @@ service cloud.firestore {
           && data.displayName is string
           && data.createdAt is timestamp
           && (!data.keys().hasAny(['email']) || data.email is string || data.email == null)
-          && (!data.keys().hasAny(['photoURL']) || data.photoURL is string || data.photoURL == null);
+          && (!data.keys().hasAny(['photoURL']) || data.photoURL is string || data.photoURL == null)
+          && (!data.keys().hasAny(['isBanned']) || data.isBanned is bool)
+          && (!data.keys().hasAny(['totalPoints']) || data.totalPoints is number)
+          && (!data.keys().hasAny(['gamePoints']) || data.gamePoints is number)
+          && (!data.keys().hasAny(['postsPoints']) || data.postsPoints is number)
+          && (!data.keys().hasAny(['followersCount']) || data.followersCount is number)
+          && (!data.keys().hasAny(['followingCount']) || data.followingCount is number);
     }
 
     // Rules
     match /users/{userId} {
       allow read: if true;
       allow create: if isSignedIn() && request.auth.uid == userId && isUserValid(incoming());
-      allow update: if isSignedIn() && request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'coverURL', 'username', 'rollNumber', 'phoneNumber', 'address', 'bio', 'totalPoints', 'gamePoints', 'postsPoints', 'followingCount'])) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['followersCount'])) ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['isBanned', 'isVerified', 'totalPoints', 'gamePoints', 'postsPoints']))
+      );
+    }
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().followerId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().followerId == request.auth.uid;
+    }
+
+    match /community_messages/{messageId} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().authorUid == request.auth.uid && incoming().content.size() <= 500;
+      allow delete: if isAdmin();
     }
 
     match /admins/{userId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && incoming().password == 'NJAC26' && userId == request.auth.uid;
+    }
+
+    match /adminSettings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /settings/{settingId} {
@@ -84,6 +122,15 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAdmin() && isNewsBlogValid(incoming());
       allow update, delete: if isAdmin();
+    }
+
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
     }
 
     match /posts/{postId} {
@@ -119,8 +166,11 @@ service cloud.firestore {
       allow create: if isSignedIn() 
                     && isCommentValid(incoming());
       allow update: if isSignedIn() 
-                    && existing().authorUid == request.auth.uid 
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'updatedAt'])
+                    && (isAdmin() || existing().authorUid == request.auth.uid)
+                    && (
+                      (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'updatedAt'])) ||
+                      (existing().authorUid == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'updatedAt']))
+                    )
                     && incoming().content is string && incoming().content.size() > 0 && incoming().content.size() <= 1000;
       allow delete: if isAdmin() || (isSignedIn() && existing().authorUid == request.auth.uid);
     }

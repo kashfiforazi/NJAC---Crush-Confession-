@@ -1,18 +1,28 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { Moon, Sun, Heart, Edit3, Menu, X, MoreVertical, Newspaper, BookOpen, Clock, Info, Shield, Home, TrendingUp, Grid } from 'lucide-react';
+import { Moon, Sun, Heart, Edit3, Menu, X, MoreVertical, Newspaper, BookOpen, Clock, Info, Shield, Home, TrendingUp, Grid, Bell, Users, Gamepad2, Search as SearchIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { formatDistanceToNow } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopMoreOpen, setIsDesktopMoreOpen] = useState(false);
+  const [showNotices, setShowNotices] = useState(false);
+  const [notices, setNotices] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'notices'), orderBy('createdAt', 'desc'), limit(5));
+    return onSnapshot(q, (snapshot) => {
+      setNotices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+  }, []);
   const [clickCount, setClickCount] = useState(0);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -51,9 +61,9 @@ export default function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20 dark:border-slate-800/50">
+    <header className="sticky top-0 left-0 right-0 z-50 glass border-b border-white/20 dark:border-slate-800/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           <Link to="/" onClick={() => setClickCount(c => c + 1)} className="flex items-center space-x-2 cursor-pointer select-none">
             {headerLogo ? (
               <img src={headerLogo} alt="Logo" className="h-8 w-auto object-contain" />
@@ -71,7 +81,9 @@ export default function Navbar() {
           <nav className="hidden md:flex items-center space-x-8 relative">
             <Link to="/" className="text-sm font-medium hover:text-primary-500 transition-colors">Home</Link>
             <Link to="/category/crush" className="text-sm font-medium hover:text-primary-500 transition-colors">Trending</Link>
-            <Link to="/categories" className="text-sm font-medium hover:text-primary-500 transition-colors">Categories</Link>
+            <Link to="/leaderboard" className="text-sm font-medium hover:text-primary-500 transition-colors">Leaderboard</Link>
+            <Link to="/community" className="text-sm font-medium hover:text-primary-500 transition-colors">Community</Link>
+            <Link to="/game-zone" className="text-sm font-medium hover:text-primary-500 transition-colors">Game Zone</Link>
             <Link to="/submit" className="flex items-center space-x-1 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
               <Edit3 className="w-4 h-4" />
               <span>Submit</span>
@@ -84,6 +96,15 @@ export default function Navbar() {
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
             </button>
+            <div className="relative">
+              <Link 
+                to="/notices"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative block"
+              >
+                <Bell className="w-5 h-5 text-primary-500" />
+                {notices.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>}
+              </Link>
+            </div>
             <div className="relative">
               <button onClick={() => setIsDesktopMoreOpen(!isDesktopMoreOpen)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <MoreVertical className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -135,6 +156,10 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <div className="flex items-center md:hidden space-x-4">
+            <Link to="/notices" className="p-2 text-primary-500 relative">
+               <Bell className="w-5 h-5" />
+               {notices.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>}
+            </Link>
             <button onClick={toggleTheme} className="p-2">
               {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
             </button>
@@ -174,6 +199,14 @@ export default function Navbar() {
               <Link to="/blog" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
                 <BookOpen className="w-5 h-5 text-green-500" />
                 <span>Blog</span>
+              </Link>
+              <Link to="/community" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Users className="w-5 h-5 text-primary-500" />
+                <span>Community</span>
+              </Link>
+              <Link to="/game-zone" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
+                <Gamepad2 className="w-5 h-5 text-indigo-500" />
+                <span>Game Zone</span>
               </Link>
               <Link to="/history" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-bold">
                 <Clock className="w-5 h-5 text-purple-500" />

@@ -3,30 +3,55 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDoc, setDoc, limit } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../../lib/firebase';
 import toast from 'react-hot-toast';
-import { Settings, CheckCircle, XCircle, Trash2, Eye, LayoutDashboard, LogOut, FileText, PlusCircle, Edit3, Image as ImageIcon } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Trash2, Eye, LayoutDashboard, LogOut, FileText, PlusCircle, Edit3, Image as ImageIcon, Users, MessageSquare, Bell, Search, BadgeCheck, User, Info } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 
 const CATEGORIES = ['Crush', 'Love', 'Secret', 'Funny', 'Advice', 'General'];
+
+const generateSlug = (text: string) => {
+  return text
+    .toLowerCase()
+    .replace(/[^\w ]+/g, '')
+    .replace(/ +/g, '-');
+};
 
 export default function AdminDashboard() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState<any[]>([]);
-  const [fetching, setFetching] = useState(true);
+  const [fetching, setFetching] = useState(false);
   
-  const [mainTab, setMainTab] = useState<'posts' | 'create' | 'settings' | 'newsBlog'>('posts');
+  const [mainTab, setMainTab] = useState<'posts' | 'create' | 'settings' | 'newsBlog' | 'users' | 'comments' | 'notices' | 'banners' | 'adminProfile'>('posts');
   const [newsBlogs, setNewsBlogs] = useState<any[]>([]);
-  const [fetchingNews, setFetchingNews] = useState(true);
-  const [createNewsData, setCreateNewsData] = useState({ title: '', content: '', imageUrl: '', type: 'news', url: '' });
+  const [usersBoard, setUsersBoard] = useState<any[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [allComments, setAllComments] = useState<any[]>([]);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [allNotices, setAllNotices] = useState<any[]>([]);
+  const [allBanners, setAllBanners] = useState<any[]>([]);
+  const [adminProfile, setAdminProfile] = useState({
+    displayName: 'NJAC ADMIN',
+    username: 'njac_official',
+    photoURL: '',
+    coverURL: '',
+    bio: '',
+    followersCount: 0,
+    followingCount: 0
+  });
+  const [newNotice, setNewNotice] = useState('');
+  const [fetchingNews, setFetchingNews] = useState(false);
+  const [createNewsData, setCreateNewsData] = useState({ title: '', content: '', imageUrl: '', videoUrl: '', type: 'news', url: '', slug: '' });
+  const [newBanner, setNewBanner] = useState({ imageUrl: '', link: '', title: '' });
   const [postTab, setPostTab] = useState<'pending' | 'published'>('pending');
 
   // Edit Post State
   const [editingPost, setEditingPost] = useState<any>(null);
 
   // Create Post State
-  const [createData, setCreateData] = useState({ title: '', content: '', category: 'Crush', imageUrl: '' });
+  const [createData, setCreateData] = useState({ title: '', content: '', category: 'Crush', imageUrl: '', slug: '' });
 
   // Settings State
   const [settingsForm, setSettingsForm] = useState({ 
@@ -42,28 +67,43 @@ export default function AdminDashboard() {
   }, [user, isAdmin, loading, navigate]);
 
   useEffect(() => {
-    async function fetchPosts() {
+    async function fetchData() {
       if (!isAdmin) return;
       try {
         setFetching(true);
-        // Add limit to avoid fetching too many records at once and slowing down the app
-        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(100));
-        const snapshot = await getDocs(q);
-        setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        
-        // Fetch news/blogs
-        const q2 = query(collection(db, 'news_blogs'), orderBy('createdAt', 'desc'), limit(50));
-        const sn2 = await getDocs(q2);
-        setNewsBlogs(sn2.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        if (mainTab === 'posts') {
+          const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
+          const snapshot = await getDocs(q);
+          setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else if (mainTab === 'newsBlog') {
+          const q2 = query(collection(db, 'news_blogs'), orderBy('createdAt', 'desc'), limit(50));
+          const sn2 = await getDocs(q2);
+          setNewsBlogs(sn2.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else if (mainTab === 'users') {
+          const qU = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(100));
+          const snU = await getDocs(qU);
+          setUsersBoard(snU.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else if (mainTab === 'comments') {
+          const qC = query(collection(db, 'comments'), orderBy('createdAt', 'desc'), limit(100));
+          const snC = await getDocs(qC);
+          setAllComments(snC.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else if (mainTab === 'notices') {
+          const qN = query(collection(db, 'notices'), orderBy('createdAt', 'desc'), limit(50));
+          const snN = await getDocs(qN);
+          setAllNotices(snN.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else if (mainTab === 'banners') {
+          const qB = query(collection(db, 'banners'), orderBy('order', 'asc'));
+          const snB = await getDocs(qB);
+          setAllBanners(snB.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }
       } catch (error) {
-        console.error(error);
-        toast.error('Failed to load data');
+        handleFirestoreError(error, OperationType.GET, `admin_${mainTab}`);
       } finally {
         setFetching(false);
       }
     }
-    fetchPosts();
-  }, [isAdmin]);
+    fetchData();
+  }, [isAdmin, mainTab]);
 
   useEffect(() => {
     if (globalSettings) {
@@ -91,22 +131,25 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!createNewsData.title || !createNewsData.content) return;
     try {
+      const slug = createNewsData.slug.trim() || generateSlug(createNewsData.title);
       const payload: any = {
         title: createNewsData.title,
         content: createNewsData.content,
         type: createNewsData.type,
+        slug: slug,
         createdAt: serverTimestamp(),
         authorUid: user?.uid,
       };
       if (createNewsData.imageUrl) payload.imageUrl = createNewsData.imageUrl;
+      if (createNewsData.videoUrl) payload.videoUrl = createNewsData.videoUrl;
       if (createNewsData.url) payload.url = createNewsData.url;
 
       const newDoc = await addDoc(collection(db, 'news_blogs'), payload);
       setNewsBlogs([{ id: newDoc.id, ...payload, createdAt: { toDate: () => new Date() } }, ...newsBlogs]);
-      setCreateNewsData({ title: '', content: '', imageUrl: '', type: 'news', url: '' });
+      setCreateNewsData({ title: '', content: '', imageUrl: '', videoUrl: '', type: 'news', url: '', slug: '' });
       toast.success(`${createNewsData.type === 'news' ? 'News' : 'Blog'} published!`);
     } catch (err) {
-       console.error(err); toast.error('Failed to create entry');
+       handleFirestoreError(err, OperationType.WRITE, 'news_blogs');
     }
   };
 
@@ -117,7 +160,133 @@ export default function AdminDashboard() {
       setNewsBlogs(newsBlogs.filter(p => p.id !== id));
       toast.success('Deleted');
     } catch (error: any) {
-      console.error(error); toast.error('Failed to delete: ' + error.message);
+      handleFirestoreError(error, OperationType.DELETE, `news_blogs/${id}`);
+    }
+  };
+
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'adminSettings', 'profile'));
+        if (snap.exists()) {
+          setAdminProfile(snap.data() as any);
+        } else {
+          console.log('Admin profile document does not exist yet. Using defaults.');
+        }
+      } catch (err) {
+        console.warn('Admin profile fetch failed (likely needs initial setup):', err);
+      }
+    };
+    fetchAdminProfile();
+  }, []);
+
+  const handleUpdateAdminProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await setDoc(doc(db, 'adminSettings', 'profile'), {
+        ...adminProfile,
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Admin Profile updated successfully!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'adminSettings');
+    }
+  };
+
+  const handleCreateNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNotice.trim()) return;
+    try {
+      const payload = {
+        content: newNotice,
+        active: true,
+        createdAt: serverTimestamp()
+      };
+      const docRef = await addDoc(collection(db, 'notices'), payload);
+      setAllNotices([{ id: docRef.id, ...payload, createdAt: { toDate: () => new Date() } }, ...allNotices]);
+      setNewNotice('');
+      toast.success('Notice posted!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'notices');
+    }
+  };
+
+  const handleCreateBanner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBanner.imageUrl) return;
+    try {
+      const payload = { ...newBanner, order: allBanners.length, createdAt: serverTimestamp() };
+      const docRef = await addDoc(collection(db, 'banners'), payload);
+      setAllBanners([...allBanners, { id: docRef.id, ...payload }]);
+      setNewBanner({ imageUrl: '', title: '', link: '' });
+      toast.success('Banner added');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'banners');
+    }
+  };
+
+  const handleDeleteBanner = async (id: string) => {
+    if (!window.confirm('Delete banner?')) return;
+    try {
+      await deleteDoc(doc(db, 'banners', id));
+      setAllBanners(allBanners.filter(b => b.id !== id));
+      toast.success('Banner deleted');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, 'banners');
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'notices', id));
+      setAllNotices(allNotices.filter(n => n.id !== id));
+      toast.success('Notice removed');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `notices/${id}`);
+    }
+  };
+
+  const handleToggleBan = async (uId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', uId), { isBanned: !currentStatus });
+      setUsersBoard(usersBoard.map(u => u.id === uId ? { ...u, isBanned: !currentStatus } : u));
+      toast.success(`User ${!currentStatus ? 'Banned' : 'Unbanned'}`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${uId}`);
+    }
+  };
+
+  const handleDeleteComment = async (cId: string) => {
+    if (!window.confirm('Delete this comment?')) return;
+    try {
+      await deleteDoc(doc(db, 'comments', cId));
+      setAllComments(allComments.filter(c => c.id !== cId));
+      toast.success('Comment deleted');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `comments/${cId}`);
+    }
+  };
+
+  const handleAdminReply = async (comment: any) => {
+    if (!adminReplyText.trim()) return;
+    try {
+      const payload = {
+        postId: comment.postId,
+        parentId: comment.id,
+        content: adminReplyText.trim(),
+        authorUid: user?.uid,
+        authorName: adminProfile.displayName || 'NJAC ADMIN',
+        authorPhotoURL: adminProfile.photoURL || null,
+        nickname: adminProfile.displayName || 'NJAC ADMIN',
+        isAdmin: true,
+        createdAt: serverTimestamp()
+      };
+      await addDoc(collection(db, 'comments'), payload);
+      setAdminReplyText('');
+      setReplyingToCommentId(null);
+      toast.success('Reply posted as Official Admin!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'comments');
     }
   };
 
@@ -127,8 +296,7 @@ export default function AdminDashboard() {
       setPosts(posts.map(p => p.id === id ? { ...p, status } : p));
       toast.success(`Post ${status}`);
     } catch (error: any) {
-      console.error(error);
-      toast.error('Failed to update status: ' + error.message);
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${id}`);
     }
   };
 
@@ -139,8 +307,17 @@ export default function AdminDashboard() {
       setPosts(posts.filter(p => p.id !== id));
       toast.success('Post deleted');
     } catch (error: any) {
-      console.error(error);
-      toast.error('Failed to delete post: ' + error.message);
+      handleFirestoreError(error, OperationType.DELETE, `posts/${id}`);
+    }
+  };
+
+  const handleToggleVerified = async (uId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', uId), { isVerified: !currentStatus });
+      setUsersBoard(usersBoard.map(u => u.id === uId ? { ...u, isVerified: !currentStatus } : u));
+      toast.success(`User ${!currentStatus ? 'Verified' : 'Unverified'}`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${uId}`);
     }
   };
 
@@ -148,6 +325,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!createData.content) return;
     try {
+      const slug = createData.slug.trim() || (createData.title ? generateSlug(createData.title) : '');
       const payload: any = {
         content: createData.content,
         category: createData.category,
@@ -160,15 +338,16 @@ export default function AdminDashboard() {
       };
       if (createData.title.trim()) payload.title = createData.title.trim();
       if (createData.imageUrl) payload.imageUrl = createData.imageUrl;
+      if (slug) payload.slug = slug;
 
       const newDoc = await addDoc(collection(db, 'posts'), payload);
       setPosts([{ id: newDoc.id, ...payload, createdAt: { toDate: () => new Date() } }, ...posts]);
-      setCreateData({ title: '', content: '', category: 'Crush', imageUrl: '' });
+      setCreateData({ title: '', content: '', category: 'Crush', imageUrl: '', slug: '' });
       toast.success('Admin post published!');
       setMainTab('posts');
       setPostTab('published');
     } catch (err) {
-       console.error(err); toast.error('Failed to create post');
+       handleFirestoreError(err, OperationType.WRITE, 'posts');
     }
   };
 
@@ -188,7 +367,7 @@ export default function AdminDashboard() {
       setEditingPost(null);
       toast.success('Post updated');
     } catch (err) {
-      console.error(err); toast.error('Failed to update post');
+      handleFirestoreError(err, OperationType.UPDATE, `posts/${editingPost.id}`);
     }
   };
 
@@ -199,7 +378,7 @@ export default function AdminDashboard() {
       await setDoc(doc(db, 'settings', 'global'), settingsForm);
       toast.success('Settings saved! Reload to apply.');
     } catch (error) {
-       console.error(error); toast.error('Failed to save settings');
+       handleFirestoreError(error, OperationType.WRITE, 'settings/global');
     } finally {
       setSavingSettings(false);
     }
@@ -233,6 +412,26 @@ export default function AdminDashboard() {
           <button onClick={() => setMainTab('newsBlog')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'newsBlog' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
             <FileText className="w-5 h-5 shrink-0" />
             <span>News & Blogs</span>
+          </button>
+          <button onClick={() => setMainTab('comments')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'comments' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+            <MessageSquare className="w-5 h-5 shrink-0" />
+            <span>Comments</span>
+          </button>
+          <button onClick={() => setMainTab('users')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'users' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+            <Users className="w-5 h-5 shrink-0" />
+            <span>Users</span>
+          </button>
+          <button onClick={() => setMainTab('notices')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'notices' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+            <Bell className="w-5 h-5 shrink-0" />
+            <span>Site Notices</span>
+          </button>
+          <button onClick={() => setMainTab('banners')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'banners' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+            <ImageIcon className="w-5 h-5 shrink-0" />
+            <span>Slider Banners</span>
+          </button>
+          <button onClick={() => setMainTab('adminProfile')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'adminProfile' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+            <User className="w-5 h-5 shrink-0" />
+            <span>Admin Profile</span>
           </button>
           <button onClick={() => setMainTab('settings')} className={`flex items-center space-x-2 md:space-x-3 whitespace-nowrap px-4 md:px-3 py-2 md:py-3 rounded-lg font-medium transition-colors ${mainTab === 'settings' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
             <Settings className="w-5 h-5 shrink-0" />
@@ -341,9 +540,18 @@ export default function AdminDashboard() {
         {mainTab === 'create' && (
           <div className="max-w-2xl bg-white dark:bg-slate-800 p-8 rounded-xl border border-slate-200 dark:border-slate-700">
             <form onSubmit={handleCreatePost} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold mb-2">Title (Optional)</label>
-                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createData.title} onChange={e=>setCreateData({...createData, title: e.target.value})} placeholder="Give your post a title..." />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Title (Optional)</label>
+                  <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createData.title} onChange={e=>{
+                    const t = e.target.value;
+                    setCreateData({...createData, title: t, slug: generateSlug(t)});
+                  }} placeholder="Give your post a title..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Slug (URL)</label>
+                  <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createData.slug} onChange={e=>setCreateData({...createData, slug: e.target.value})} placeholder="post-url-slug" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-2">Category</label>
@@ -379,15 +587,28 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-2">Title</label>
-                    <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.title} onChange={e=>setCreateNewsData({...createNewsData, title: e.target.value})} required />
+                    <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.title} onChange={e=>{
+                      const t = e.target.value;
+                      setCreateNewsData({...createNewsData, title: t, slug: generateSlug(t)});
+                    }} required />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Slug (URL)</label>
+                    <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.slug} onChange={e=>setCreateNewsData({...createNewsData, slug: e.target.value})} placeholder="news-url-slug" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Image URL (Optional)</label>
+                    <input type="url" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.imageUrl} onChange={e=>setCreateNewsData({...createNewsData, imageUrl: e.target.value})} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Image URL (Optional)</label>
-                  <input type="url" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.imageUrl} onChange={e=>setCreateNewsData({...createNewsData, imageUrl: e.target.value})} />
+                  <label className="block text-sm font-semibold mb-2">Video Embed URL (YouTube/FB) (Optional)</label>
+                  <input type="url" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.videoUrl} onChange={e=>setCreateNewsData({...createNewsData, videoUrl: e.target.value})} placeholder="https://www.youtube.com/embed/..." />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">External URL (Optional)</label>
+                  <label className="block text-sm font-semibold mb-2">External News Link (Optional)</label>
                   <input type="url" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={createNewsData.url} onChange={e=>setCreateNewsData({...createNewsData, url: e.target.value})} />
                 </div>
                 <div>
@@ -424,6 +645,281 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {mainTab === 'banners' && (
+           <div className="space-y-8">
+              <div className="glass-card p-8">
+                <h3 className="text-xl font-bold font-heading uppercase mb-6">Manage Banners (Slider)</h3>
+                <form onSubmit={handleCreateBanner} className="space-y-4">
+                   <div className="grid md:grid-cols-2 gap-4">
+                      <input type="url" placeholder="Banner Image URL" className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent outline-none" value={newBanner.imageUrl} onChange={e=>setNewBanner({...newBanner, imageUrl: e.target.value})} required />
+                      <input type="text" placeholder="Title (Optional)" className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent outline-none" value={newBanner.title} onChange={e=>setNewBanner({...newBanner, title: e.target.value})} />
+                   </div>
+                   <input type="url" placeholder="Redirect Link (Optional)" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent outline-none" value={newBanner.link} onChange={e=>setNewBanner({...newBanner, link: e.target.value})} />
+                   <button type="submit" className="px-6 py-3 bg-primary-500 text-white rounded-xl font-bold uppercase text-xs tracking-widest">Add Banner</button>
+                </form>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-6">
+                 {allBanners.map(b => (
+                    <div key={b.id} className="glass-card overflow-hidden group relative">
+                       <img src={b.imageUrl} alt="" className="w-full h-32 object-cover" />
+                       <div className="p-4">
+                          <p className="font-bold text-sm truncate">{b.title || 'No Title'}</p>
+                          <button onClick={()=>handleDeleteBanner(b.id)} className="mt-2 text-red-500 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+                 ))}
+                 {allBanners.length === 0 && <p className="col-span-3 text-center text-slate-400 py-10 italic">No banners added. Maximum 3 recommended.</p>}
+              </div>
+           </div>
+        )}
+
+        {mainTab === 'users' && (
+           <div className="space-y-6">
+             <div className="glass-card p-4 flex items-center gap-4">
+                <Search className="w-5 h-5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search user by name or email..." 
+                  className="flex-1 bg-transparent outline-none p-2"
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                />
+             </div>
+
+             <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+               <table className="w-full text-left">
+                 <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase text-slate-500">
+                    <th className="p-4">User</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                   {usersBoard
+                    .filter(u => 
+                      u.displayName?.toLowerCase().includes(userSearch.toLowerCase()) || 
+                      u.email?.toLowerCase().includes(userSearch.toLowerCase())
+                    )
+                    .map(u => (
+                     <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
+                       <td className="p-4">
+                         <div className="flex items-center gap-2">
+                           <div className="font-bold">{u.displayName}</div>
+                           {u.isVerified && <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />}
+                         </div>
+                         <div className="text-xs text-slate-500">{u.email}</div>
+                       </td>
+                       <td className="p-4 text-right flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleToggleVerified(u.id, u.isVerified)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-bold ${u.isVerified ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}
+                          >
+                            {u.isVerified ? 'Verified' : 'Verify'}
+                          </button>
+                          <button 
+                            onClick={() => handleToggleBan(u.id, u.isBanned)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-bold ${u.isBanned ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                          >
+                            {u.isBanned ? 'Unban User' : 'Ban User'}
+                          </button>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+        )}
+
+        {mainTab === 'comments' && (
+           <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+             <table className="w-full text-left">
+               <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase text-slate-500">
+                  <th className="p-4">Comment</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                 {allComments.filter(c => !c.parentId).map(c => (
+                   <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
+                     <td className="p-4">
+                       <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-bold ${c.isAdmin ? 'text-primary-500' : 'text-slate-900 dark:text-slate-100'}`}>
+                            {c.isAdmin ? 'NJAC ADMIN' : (c.nickname || 'Anonymous')}
+                          </span>
+                          {c.isAnonymous && <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">(Anonymous)</span>}
+                       </div>
+                       <div className="text-sm font-medium mb-1">{c.content}</div>
+                       <div className="text-[10px] text-slate-400">Post ID: {c.postId} | {c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString() : ''}</div>
+                       
+                       {replyingToCommentId === c.id ? (
+                         <div className="mt-4 flex gap-2">
+                            <input 
+                              type="text" 
+                              placeholder="Type admin reply..." 
+                              className="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-sm" 
+                              value={adminReplyText}
+                              onChange={e => setAdminReplyText(e.target.value)}
+                            />
+                            <button onClick={()=>handleAdminReply(c)} className="px-4 py-2 bg-primary-500 text-white rounded-lg text-xs font-bold">Post Reply</button>
+                            <button onClick={()=>setReplyingToCommentId(null)} className="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-xs font-bold">Cancel</button>
+                         </div>
+                       ) : (
+                         <div className="mt-2 space-y-2">
+                            <button onClick={() => setReplyingToCommentId(c.id)} className="text-[10px] font-bold text-primary-500 uppercase tracking-widest hover:underline">Reply as Admin</button>
+                            {/* Show sub-replies briefly? */}
+                            {allComments.filter(r => r.parentId === c.id).map(r => (
+                              <div key={r.id} className="ml-4 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-l-2 border-primary-500 text-[11px]">
+                                 <span className="font-bold text-primary-500 mr-2">{r.isAdmin ? 'ADMIN:' : 'USER:'}</span>
+                                 {r.content}
+                              </div>
+                            ))}
+                         </div>
+                       )}
+                     </td>
+                     <td className="p-4 text-right align-top">
+                        <button onClick={() => handleDeleteComment(c.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+        )}
+
+        {mainTab === 'notices' && (
+          <div className="space-y-8">
+            <div className="max-w-xl bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+              <h3 className="font-bold mb-4">Post Global Notice</h3>
+              <form onSubmit={handleCreateNotice} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newNotice} 
+                  onChange={e=>setNewNotice(e.target.value)} 
+                  placeholder="Important announcement..." 
+                  className="flex-1 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent"
+                  required
+                />
+                <button type="submit" className="px-6 bg-primary-500 text-white font-bold rounded-lg shrink-0">Send</button>
+              </form>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+              <h3 className="p-4 border-b border-slate-200 dark:border-slate-700 font-bold">Active Notices</h3>
+              <table className="w-full text-left">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {allNotices.map(n => (
+                    <tr key={n.id}>
+                      <td className="p-4 font-medium">{n.content}</td>
+                      <td className="p-4 text-right">
+                        <button onClick={() => handleDeleteNotice(n.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {mainTab === 'adminProfile' && (
+          <div className="max-w-2xl mx-auto space-y-8 pb-12">
+             <div className="glass-card p-8 border-b-8 border-primary-500/10">
+                <div className="flex items-center gap-6 mb-8">
+                   <div className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-4 border-white dark:border-slate-700 shadow-xl relative group">
+                      {adminProfile.photoURL ? (
+                        <img src={adminProfile.photoURL} alt="Admin" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-12 h-12 text-slate-400" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <span className="text-[8px] font-black text-white uppercase tracking-widest">Preview</span>
+                      </div>
+                   </div>
+                      <div>
+                        <h3 className="text-2xl font-black uppercase tracking-tight">{adminProfile.displayName}</h3>
+                        <p className="text-emerald-500 font-bold text-[10px] uppercase tracking-[0.2em]">@{adminProfile.username}</p>
+                        <div className="flex gap-4 mt-2">
+                           <div className="text-[9px] font-black uppercase text-slate-400">Followers: <span className="text-slate-900 dark:text-white ml-1">{adminProfile.followersCount}</span></div>
+                           <div className="text-[9px] font-black uppercase text-slate-400">Following: <span className="text-slate-900 dark:text-white ml-1">{adminProfile.followingCount}</span></div>
+                        </div>
+                      </div>
+                </div>
+
+                <form onSubmit={handleUpdateAdminProfile} className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Official Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. NJAC OFFICIAL"
+                        className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none font-bold focus:ring-2 focus:ring-primary-500/20" 
+                        value={adminProfile.displayName}
+                        onChange={e => setAdminProfile({...adminProfile, displayName: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Username</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. njac_official"
+                        className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none font-bold focus:ring-2 focus:ring-primary-500/20" 
+                        value={adminProfile.username}
+                        onChange={e => setAdminProfile({...adminProfile, username: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Logo/Photo URL</label>
+                      <input 
+                        type="url" 
+                        placeholder="https://..."
+                        className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-primary-500/20" 
+                        value={adminProfile.photoURL}
+                        onChange={e => setAdminProfile({...adminProfile, photoURL: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Cover URL</label>
+                      <input 
+                        type="url" 
+                        placeholder="https://..."
+                        className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-primary-500/20" 
+                        value={adminProfile.coverURL}
+                        onChange={e => setAdminProfile({...adminProfile, coverURL: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Short Bio</label>
+                    <textarea 
+                      placeholder="About this official identity..."
+                      className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none h-32 resize-none" 
+                      value={adminProfile.bio}
+                      onChange={e => setAdminProfile({...adminProfile, bio: e.target.value})}
+                    />
+                  </div>
+                  <button type="submit" className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black uppercase tracking-widest text-xs active:scale-[0.98] transition-all hover:shadow-lg">
+                    Save Identity Settings
+                  </button>
+                </form>
+             </div>
+
+             <div className="p-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl flex gap-4">
+                <Info className="w-6 h-6 text-amber-500 shrink-0" />
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Setting this profile will replace your personal Google identity across all admin interactions. Users will see <strong>{adminProfile.displayName || 'Official Identity'}</strong> instead of your account name.
+                </p>
+             </div>
           </div>
         )}
 

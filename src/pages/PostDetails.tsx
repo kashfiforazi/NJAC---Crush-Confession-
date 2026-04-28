@@ -1,30 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc, increment, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Heart, Send, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Heart, Send, Edit, Trash2, BadgeCheck, Clock, Info } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 
 export default function PostDetails() {
   const { slug } = useParams();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isBanned } = useAuth();
   const [post, setPost] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [commenterName, setCommenterName] = useState('');
+  const [isAnonymousComment, setIsAnonymousComment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [userReaction, setUserReaction] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [replyIsAnonymous, setReplyIsAnonymous] = useState(false);
+  const [adminSettings, setAdminSettings] = useState<any>(null);
+  const [useOfficialIdentity, setUseOfficialIdentity] = useState(false);
   
-  // also need limit from fs
   const [actualPostId, setActualPostId] = useState<string | null>(null);
+  const [authorsInfo, setAuthorsInfo] = useState<Record<string, any>>({});
 
   useEffect(() => {
     async function fetchData() {
@@ -33,22 +37,12 @@ export default function PostDetails() {
         let postDoc: any = null;
         let pId = slug;
 
-        // Try querying by slug using different rules-compliant queries
         const { limit } = await import('firebase/firestore');
 
         const slugPromises = [];
-        // 1. Published post (works for everyone)
         slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), where('status', '==', 'published'), limit(1))).catch(() => null));
-        
-        // 2. Author's own post
-        if (user) {
-          slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), where('authorUid', '==', user.uid), limit(1))).catch(() => null));
-        }
-        
-        // 3. Admin query
-        if (isAdmin) {
-          slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), limit(1))).catch(() => null));
-        }
+        if (user) slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), where('authorUid', '==', user.uid), limit(1))).catch(() => null));
+        if (isAdmin) slugPromises.push(getDocs(query(collection(db, 'posts'), where('slug', '==', slug), limit(1))).catch(() => null));
 
         const slugResults = await Promise.all(slugPromises);
         for (const res of slugResults) {
@@ -60,7 +54,6 @@ export default function PostDetails() {
         }
 
         if (!postDoc) {
-          // Fallback to fetch by ID if slug not found
           const docRef = doc(db, 'posts', slug);
           const iSnap = await getDoc(docRef);
           if (iSnap.exists()) {
@@ -89,63 +82,66 @@ export default function PostDetails() {
           getDocs(commentsQ)
         ];
         
-        if (reactionRef) {
-          promises.push(getDoc(reactionRef));
-        }
+        if (reactionRef) promises.push(getDoc(reactionRef));
 
         const results = await Promise.all(promises);
         const commentsSnap = results[0];
         
-        setPost({ id: postDoc.id, ...postDoc.data() });
+        const postData = postDoc.data();
+        setPost({ id: postDoc.id, ...postData });
         
-        if (postDoc.data().status === 'published') {
-          updateDoc(docRef, {
-            viewsCount: increment(1)
-          }).catch(e => console.error('Failed to increment view', e));
+        if (postData.status === 'published') {
+          updateDoc(docRef, { viewsCount: increment(1) }).catch(e => handleFirestoreError(e, OperationType.UPDATE, `posts/${pId}`));
         }
 
-        setComments(commentsSnap.docs.map((d: any) => ({id: d.id, ...d.data()})));
+        const commentsData = commentsSnap.docs.map((d: any) => ({id: d.id, ...d.data()}));
+        setComments(commentsData);
 
         if (reactionRef && results[1]) {
           const reactionSnap = results[1];
-          if (reactionSnap.exists()) {
-            setUserReaction(reactionSnap.data().type);
-          }
+          if (reactionSnap.exists()) setUserReaction(reactionSnap.data().type);
         }
+
+        // Fetch admin settings for official identity
+        try {
+          const adminSnap = await getDoc(doc(db, 'adminSettings', 'profile'));
+          if (adminSnap.exists()) setAdminSettings(adminSnap.data());
+        } catch (e) {
+          console.error('Non-critical: Admin profile not found');
+        }
+
+        // Fetch all authors info to show verified badges and photos
+        const uids = new Set<string>();
+        if (postData.authorUid) uids.add(postData.authorUid);
+        commentsData.forEach((c: any) => { if (c.authorUid) uids.add(c.authorUid); });
+
+        const info: Record<string, any> = {};
+        const userPromises = Array.from(uids).map(uid => getDoc(doc(db, 'users', uid)));
+        const userSnaps = await Promise.all(userPromises);
+        userSnaps.forEach(snap => {
+          if (snap.exists()) info[snap.id] = snap.data();
+        });
+        setAuthorsInfo(info);
       } catch (error) {
-        console.error(error);
-        toast.error('Could not load post');
+        handleFirestoreError(error, OperationType.GET, `posts/${slug}`);
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, [slug, user]);
+  }, [slug, user, isAdmin]);
 
   const handleReact = async (type: 'like' | 'love' | 'haha' | 'sad' | 'wow') => {
     if (!user || !actualPostId || !post) return;
-    
-    // Optimistic UI update could go here
     try {
-      if (userReaction === type) return; // Already reacted this way
-      
+      if (userReaction === type) return;
       const reactionRef = doc(db, 'posts', actualPostId, 'reactions', user.uid);
       const postRef = doc(db, 'posts', actualPostId);
-
-      // We update the reaction counts using increment
       const updates: any = {};
-      if (userReaction) {
-        updates[`reactionCounts.${userReaction}`] = increment(-1);
-      }
+      if (userReaction) updates[`reactionCounts.${userReaction}`] = increment(-1);
       updates[`reactionCounts.${type}`] = increment(1);
-
       await updateDoc(postRef, updates);
-
-      await setDoc(reactionRef, {
-        type,
-        createdAt: serverTimestamp()
-      });
-
+      await setDoc(reactionRef, { type, createdAt: serverTimestamp() });
       setUserReaction(type);
       setPost({
         ...post,
@@ -157,22 +153,27 @@ export default function PostDetails() {
       });
       toast.success(`You reacted with ${type}`);
     } catch(err) {
-      console.error(err);
-      toast.error('Failed to react');
+      handleFirestoreError(err, OperationType.WRITE, `posts/${actualPostId}/reactions/${user.uid}`);
     }
   };
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !actualPostId || !newComment.trim()) return;
-
+    if (isBanned) return toast.error('Your account is banned.');
     setSubmitting(true);
     try {
-      const commentData = {
+      const isPostAsAdmin = isAdmin && useOfficialIdentity;
+      const commentData: any = {
         postId: actualPostId,
         authorUid: user.uid,
         content: newComment.trim(),
-        nickname: commenterName.trim() || 'Anonymous',
+        nickname: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (isAnonymousComment ? 'Anonymous' : (commenterName.trim() || user.displayName || 'Anonymous')),
+        authorName: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (isAnonymousComment ? 'Anonymous' : (user.displayName || 'Anonymous')),
+        authorPhotoURL: isPostAsAdmin ? (adminSettings?.photoURL || null) : (isAnonymousComment ? null : (user.photoURL || null)),
+        authorVerified: isPostAsAdmin ? true : (isAnonymousComment ? false : (authorsInfo[user.uid]?.isVerified || false)),
+        isAdmin: isPostAsAdmin,
+        isAnonymous: isPostAsAdmin ? false : isAnonymousComment,
         createdAt: serverTimestamp()
       };
       
@@ -180,9 +181,11 @@ export default function PostDetails() {
       setComments([...comments, { id: docRef.id, ...commentData, createdAt: new Date() }]);
       setNewComment('');
       toast.success('Comment added!');
+      if (!authorsInfo[user.uid] && !isAnonymousComment) {
+        setAuthorsInfo({ ...authorsInfo, [user.uid]: { displayName: user.displayName, photoURL: user.photoURL, isVerified: authorsInfo[user.uid]?.isVerified } });
+      }
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to add comment');
+      handleFirestoreError(err, OperationType.WRITE, 'comments');
     } finally {
       setSubmitting(false);
     }
@@ -190,26 +193,30 @@ export default function PostDetails() {
 
   const submitReply = async (commentId: string) => {
     if (!user || !actualPostId || !replyText.trim()) return;
-
+    if (isBanned) return toast.error('Your account is banned.');
     setSubmitting(true);
     try {
-      const commentData = {
+      const isPostAsAdmin = isAdmin && useOfficialIdentity;
+      const commentData: any = {
         postId: actualPostId,
         parentId: commentId,
         authorUid: user.uid,
         content: replyText.trim(),
-        nickname: commenterName.trim() || 'Anonymous',
+        nickname: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (replyIsAnonymous ? 'Anonymous' : (commenterName.trim() || user.displayName || 'Anonymous')),
+        authorName: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (replyIsAnonymous ? 'Anonymous' : (user.displayName || 'Anonymous')),
+        authorPhotoURL: isPostAsAdmin ? (adminSettings?.photoURL || null) : (replyIsAnonymous ? null : (user.photoURL || null)),
+        authorVerified: isPostAsAdmin ? true : (replyIsAnonymous ? false : (authorsInfo[user.uid]?.isVerified || false)),
+        isAdmin: isPostAsAdmin,
+        isAnonymous: isPostAsAdmin ? false : replyIsAnonymous,
         createdAt: serverTimestamp()
       };
-      
       const docRef = await addDoc(collection(db, 'comments'), commentData);
       setComments([...comments, { id: docRef.id, ...commentData, createdAt: new Date() }]);
       setReplyingToId(null);
       setReplyText('');
       toast.success('Reply added!');
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to add reply');
+      handleFirestoreError(err, OperationType.WRITE, 'comments');
     } finally {
       setSubmitting(false);
     }
@@ -223,8 +230,7 @@ export default function PostDetails() {
       setEditingCommentId(null);
       toast.success('Comment updated');
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to update comment');
+      handleFirestoreError(err, OperationType.UPDATE, `comments/${commentId}`);
     }
   };
 
@@ -235,8 +241,7 @@ export default function PostDetails() {
       setComments(comments.filter(c => c.id !== commentId));
       toast.success('Comment deleted');
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete comment');
+      handleFirestoreError(err, OperationType.DELETE, `comments/${commentId}`);
     }
   };
 
@@ -245,14 +250,13 @@ export default function PostDetails() {
     return <div className="py-20 text-center text-xl text-slate-500">Post not found or pending approval.</div>;
   }
 
+  const postAuthor = authorsInfo[post.authorUid];
+
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <Helmet>
         <title>{post.title || 'Confession'} | NJAC</title>
         <meta name="description" content={post.content?.substring(0, 160) || 'Read this confession on NJAC'} />
-        <meta property="og:title" content={post.title || 'Confession'} />
-        <meta property="og:description" content={post.content?.substring(0, 160) || 'Read this confession'} />
-        {post.imageUrl && <meta property="og:image" content={post.imageUrl} />}
       </Helmet>
 
       {/* Post Content */}
@@ -282,74 +286,46 @@ export default function PostDetails() {
           {post.content}
         </div>
 
-        <div className="flex items-center space-x-2 text-sm text-slate-500 mb-8">
-          {post.nickname === 'NJAC ADMIN' ? (
-            <span className="font-bold flex items-center space-x-1.5 text-blue-500">
-              <span>— NJAC ADMIN</span>
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17l-4.17-4.17-1.42 1.41 5.59 5.59 12-12-1.41-1.41z"></path></svg>
-            </span>
-          ) : (
-            <span className="font-medium">— {post.nickname || 'Anonymous'}</span>
-          )}
+        <div className="flex items-center space-x-3 text-sm text-slate-500 mb-8">
+          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden shrink-0">
+             {postAuthor?.photoURL && post.nickname !== 'NJAC ADMIN' ? (
+                <img src={postAuthor.photoURL} alt="" className="w-full h-full object-cover" />
+             ) : (
+                <div className="w-full h-full flex items-center justify-center font-bold text-slate-400">
+                  {post.nickname?.[0]?.toUpperCase() || 'A'}
+                </div>
+             )}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className={`font-bold ${post.nickname === 'NJAC ADMIN' ? 'text-blue-500' : 'text-slate-900 dark:text-white'}`}>
+                {post.nickname || 'Anonymous'}
+              </span>
+              {(postAuthor?.isVerified || post.nickname === 'NJAC ADMIN') && <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />}
+            </div>
+            <span className="text-xs">Author</span>
+          </div>
         </div>
 
         {/* Reactions */}
         <div className="border-t border-slate-200 dark:border-slate-800 pt-8 flex gap-4 flex-wrap">
-          <button 
-            onClick={() => handleReact('like')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            👍 Like {post.reactionCounts?.like > 0 && <span className="ml-1 opacity-80">{post.reactionCounts.like}</span>}
-          </button>
-          <button 
-            onClick={() => handleReact('love')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === 'love' ? 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            ❤️ Love {post.reactionCounts?.love > 0 && <span className="ml-1 opacity-80">{post.reactionCounts.love}</span>}
-          </button>
-          <button 
-            onClick={() => handleReact('haha')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === 'haha' ? 'bg-orange-50 border-orange-200 text-orange-600 dark:bg-orange-900/30 dark:border-orange-800' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            😂 Haha {post.reactionCounts?.haha > 0 && <span className="ml-1 opacity-80">{post.reactionCounts.haha}</span>}
-          </button>
-          <button 
-             onClick={() => handleReact('sad')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === 'sad' ? 'bg-yellow-50 border-yellow-200 text-yellow-600 dark:bg-yellow-900/30 dark:border-yellow-800' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            😢 Sad {post.reactionCounts?.sad > 0 && <span className="ml-1 opacity-80">{post.reactionCounts.sad}</span>}
-          </button>
-          <button 
-            onClick={() => handleReact('wow')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === 'wow' ? 'bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-900/30 dark:border-purple-800' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            😲 Wow {post.reactionCounts?.wow > 0 && <span className="ml-1 opacity-80">{post.reactionCounts.wow}</span>}
-          </button>
+          {(['like', 'love', 'haha', 'sad', 'wow'] as const).map(type => (
+            <button 
+              key={type}
+              onClick={() => handleReact(type)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${userReaction === type ? 'bg-primary-50 border-primary-200 text-primary-600 dark:bg-primary-900/30 dark:border-primary-800' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              <span className="capitalize">{type}</span>
+              {post.reactionCounts?.[type] > 0 && <span className="ml-1 opacity-80">{post.reactionCounts[type]}</span>}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Share Buttons */}
+      {/* Share Section */}
       <div className="glass-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <h3 className="font-bold">Share this confession</h3>
-        <div className="flex space-x-2">
-          <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank')} className="px-4 py-2 bg-[#1877F2] text-white rounded-lg hover:opacity-90 transition-opacity font-bold flex items-center gap-2">
-            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            Facebook
-          </button>
-          <button onClick={() => { 
-            if (navigator.share) {
-              navigator.share({
-                title: post.title || 'NJAC Confession',
-                url: window.location.href
-              }).catch(console.error);
-            } else {
-              navigator.clipboard.writeText(window.location.href); 
-              toast.success('Link copied!');
-            }
-          }} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-bold">
-            {navigator.share ? 'Share...' : 'Copy Link'}
-          </button>
-        </div>
+        <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); }} className="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-bold">Copy Link</button>
       </div>
 
       {/* Comments Section */}
@@ -357,126 +333,182 @@ export default function PostDetails() {
         <h3 className="text-2xl font-bold font-heading mb-6">Comments ({comments.length})</h3>
         
         <form onSubmit={submitComment} className="mb-8">
-          <div className="flex gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Your Name (Optional)"
-              className="w-1/3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none"
-              value={commenterName}
-              onChange={e => setCommenterName(e.target.value)}
-              maxLength={50}
-            />
-            <input
-              type="text"
-              placeholder="Add a comment..."
-              className="flex-grow p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none"
-              value={newComment}
-              onChange={e => setNewComment(e.target.value)}
-              required
-              maxLength={1000}
-            />
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="text"
+                placeholder="Nickname"
+                className="sm:w-1/3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none disabled:opacity-50"
+                value={commenterName}
+                onChange={e => setCommenterName(e.target.value)}
+                disabled={isAnonymousComment}
+              />
+              <input
+                type="text"
+                placeholder="Add a comment..."
+                className="flex-grow p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none"
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-500 cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={isAnonymousComment} 
+                  onChange={e => setIsAnonymousComment(e.target.checked)}
+                  disabled={isAdmin && useOfficialIdentity}
+                  className="w-4 h-4 rounded border-slate-300 text-primary-500 focus:ring-primary-500" 
+                />
+                Comment Anonymously
+              </label>
+              {isAdmin && (
+                <label className="flex items-center gap-2 text-sm font-black text-primary-500 cursor-pointer select-none uppercase tracking-widest">
+                  <input 
+                    type="checkbox" 
+                    checked={useOfficialIdentity} 
+                    onChange={e => {
+                      setUseOfficialIdentity(e.target.checked);
+                      if (e.target.checked) setIsAnonymousComment(false);
+                    }}
+                    className="w-4 h-4 rounded border-primary-300 text-primary-600 focus:ring-primary-500" 
+                  />
+                  Post as Official Admin
+                </label>
+              )}
+            </div>
           </div>
           <div className="flex justify-end">
-            <button 
-              type="submit" 
-              disabled={submitting}
-              className="px-6 py-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-              <span>Post Comment</span>
+            <button type="submit" disabled={submitting} className="px-6 py-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl font-bold disabled:opacity-50 flex items-center gap-2">
+              <Send className="w-4 h-4" /> Post Comment
             </button>
           </div>
         </form>
 
         <div className="space-y-6">
-          {comments.filter(c => !c.parentId).map((comment, i) => (
-            <div key={comment.id || i} className="pb-6 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0 relative group">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-400 to-purple-400 flex items-center justify-center text-white font-bold text-xs">
-                    {comment.nickname?.[0]?.toUpperCase() || 'A'}
-                  </div>
-                  <span className="font-bold">{comment.nickname || 'Anonymous'}</span>
-                  <span className="text-xs text-slate-400">
-                    {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-                  </span>
-                </div>
-                {user && (user.uid === comment.authorUid || isAdmin) && (
-                  <div className="hidden group-hover:flex items-center gap-2">
-                    <button onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.content); }} className="p-1.5 text-slate-500 hover:text-primary-500 bg-slate-100 hover:bg-primary-50 rounded dark:bg-slate-800 dark:hover:bg-slate-700 transition"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteComment(comment.id)} className="p-1.5 text-slate-500 hover:text-red-500 bg-slate-100 hover:bg-red-50 rounded dark:bg-slate-800 dark:hover:bg-slate-700 transition"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                )}
-              </div>
-              
-              {editingCommentId === comment.id ? (
-                <div className="ml-10 mt-2">
-                  <textarea 
-                    className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent focus:ring-2 focus:ring-primary-500 outline-none" 
-                    value={editingCommentText} 
-                    onChange={e => setEditingCommentText(e.target.value)} 
-                    rows={2} 
-                  />
-                  <div className="flex justify-end gap-2 mt-2">
-                    <button onClick={() => setEditingCommentId(null)} className="px-3 py-1.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">Cancel</button>
-                    <button onClick={() => handleUpdateComment(comment.id)} className="px-3 py-1.5 text-sm font-semibold bg-primary-500 text-white rounded hover:bg-primary-600">Save</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <p className="text-slate-700 dark:text-slate-300 ml-10">{comment.content}</p>
-                  <button 
-                    onClick={() => setReplyingToId(comment.id)} 
-                    className="ml-10 mt-2 text-xs font-bold text-slate-500 hover:text-primary-500 transition"
-                  >
-                    Reply
-                  </button>
-                </>
-              )}
-
-              {replyingToId === comment.id && (
-                <div className="ml-10 mt-4 flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Write a reply..."
-                    className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none text-sm"
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                  />
-                  <button 
-                    onClick={() => submitReply(comment.id)}
-                    disabled={submitting || !replyText.trim()}
-                    className="px-4 py-2 bg-primary-500 text-white rounded-xl font-bold hover:bg-primary-600 disabled:opacity-50 text-sm"
-                  >
-                    Send
-                  </button>
-                </div>
-              )}
-
-              {/* Nested Replies */}
-              {comments.filter(reply => reply.parentId === comment.id).map(reply => (
-                <div key={reply.id} className="ml-10 mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 relative group">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold text-xs">
-                        {reply.nickname?.[0]?.toUpperCase() || 'A'}
+          {comments.filter(c => !c.parentId).map((comment) => {
+            const author = authorsInfo[comment.authorUid];
+            const isCommentAdmin = comment.isAdmin;
+            const isCommentVerified = comment.authorVerified || (author?.isVerified && !comment.isAnonymous);
+            
+            return (
+              <div key={comment.id} className="pb-6 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0 group">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold relative ${isCommentAdmin ? 'bg-primary-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                      {(author?.photoURL || comment.authorPhotoURL) && !comment.isAnonymous ? (
+                        <img src={comment.authorPhotoURL || author.photoURL} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{comment.nickname?.[0]?.toUpperCase()}</span>
+                      )}
+                      {isCommentVerified && !isCommentAdmin && (
+                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-900 rounded-full p-0.5">
+                          <BadgeCheck className="w-3 h-3 text-blue-500 fill-current" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 line-height-1">
+                        <span className={`font-bold text-sm ${isCommentAdmin ? 'text-primary-600 dark:text-primary-400' : ''}`}>
+                          {isCommentAdmin ? 'NJAC ADMIN' : (comment.nickname || 'Anonymous')}
+                        </span>
+                        {isCommentAdmin && (
+                          <span className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 text-[8px] font-black uppercase tracking-widest rounded-md">
+                            ADMIN
+                          </span>
+                        )}
+                        {isCommentVerified && (
+                          <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
+                        )}
                       </div>
-                      <span className="font-bold text-sm">{reply.nickname || 'Anonymous'}</span>
-                      <span className="text-xs text-slate-400">
-                        {reply.createdAt?.toDate ? formatDistanceToNow(reply.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                      <span className="text-[10px] text-slate-400">
+                         {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true }) : 'Recently'}
                       </span>
                     </div>
-                    {user && (user.uid === reply.authorUid || isAdmin) && (
-                      <div className="hidden group-hover:flex items-center gap-2">
-                        <button onClick={() => handleDeleteComment(reply.id)} className="p-1 text-slate-400 hover:text-red-500 transition"><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    )}
                   </div>
-                  <p className="text-slate-700 dark:text-slate-300 text-sm">{reply.content}</p>
+                  {user && (user.uid === comment.authorUid || isAdmin) && (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleDeleteComment(comment.id)} className="p-1 text-slate-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          ))}
+                
+                <p className={`ml-12 text-sm leading-relaxed ${isCommentAdmin ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-700 dark:text-slate-300'}`}>
+                  {comment.content}
+                </p>
+                <button onClick={() => setReplyingToId(comment.id)} className="ml-12 mt-2 text-xs font-bold text-primary-500 uppercase tracking-wider hover:opacity-70 transition-opacity">Reply</button>
+
+                {replyingToId === comment.id && (
+                  <div className="ml-12 mt-4 space-y-3">
+                    <div className="flex gap-2">
+                       <input 
+                         type="text" 
+                         placeholder="Write a reply..." 
+                         className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent text-sm outline-none focus:ring-1 focus:ring-primary-500" 
+                         value={replyText} 
+                         onChange={e => setReplyText(e.target.value)} 
+                       />
+                       <button onClick={() => submitReply(comment.id)} className="px-4 py-2 bg-primary-500 text-white rounded-xl font-bold text-sm hover:bg-primary-600 transition-colors">Send</button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 cursor-pointer uppercase tracking-widest">
+                        <input 
+                          type="checkbox" 
+                          checked={replyIsAnonymous} 
+                          onChange={e => setReplyIsAnonymous(e.target.checked)}
+                          className="w-3 h-3 rounded" 
+                        />
+                        Anonymous
+                      </label>
+                      <button onClick={() => setReplyingToId(null)} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Cancel</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub Replies */}
+                <div className="mt-2 space-y-4">
+                  {comments.filter(r => r.parentId === comment.id).map(reply => {
+                    const rAuthor = authorsInfo[reply.authorUid];
+                    const isReplyAdmin = reply.isAdmin;
+                    const isReplyVerified = reply.authorVerified || (rAuthor?.isVerified && !reply.isAnonymous);
+
+                    return (
+                      <div key={reply.id} className={`ml-12 p-5 rounded-2xl border ${isReplyAdmin ? 'bg-primary-50/50 dark:bg-primary-900/10 border-primary-200/50 dark:border-primary-800/30' : 'bg-slate-50 dark:bg-slate-800/20 border-transparent'}`}>
+                         <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-6 h-6 rounded-lg overflow-hidden flex items-center justify-center text-[10px] font-bold ${isReplyAdmin ? 'bg-primary-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'}`}>
+                              {(rAuthor?.photoURL || reply.authorPhotoURL) && !reply.isAnonymous ? (
+                                <img src={reply.authorPhotoURL || rAuthor.photoURL} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span>{reply.nickname?.[0]?.toUpperCase()}</span>
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5">
+                                 <span className={`text-xs font-bold ${isReplyAdmin ? 'text-primary-600 dark:text-primary-400' : 'text-slate-900 dark:text-white'}`}>
+                                   {isReplyAdmin ? 'NJAC ADMIN' : (reply.nickname || 'Anonymous')}
+                                 </span>
+                                 {isReplyAdmin && <span className="text-[7px] font-black bg-primary-500 text-white px-1 py-0.5 rounded tracking-tighter uppercase whitespace-nowrap">Admin Reply</span>}
+                                 {isReplyVerified && <BadgeCheck className="w-3 h-3 text-blue-500" />}
+                              </div>
+                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                                {reply.createdAt?.toDate ? formatDistanceToNow(reply.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                              </span>
+                            </div>
+                            {user && (user.uid === reply.authorUid || isAdmin) && (
+                              <button onClick={() => handleDeleteComment(reply.id)} className="ml-auto p-1 text-slate-300 hover:text-red-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                            )}
+                         </div>
+                         <p className={`text-sm leading-relaxed ${isReplyAdmin ? 'text-slate-800 dark:text-slate-100 font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
+                           {reply.content}
+                         </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

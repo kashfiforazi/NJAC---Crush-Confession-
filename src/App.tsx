@@ -23,6 +23,10 @@ const GenericNewsBlog = lazy(() => import('./pages/GenericNewsBlog'));
 const NewsBlogDetails = lazy(() => import('./pages/NewsBlogDetails'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const Community = lazy(() => import('./pages/Community'));
+const GameZone = lazy(() => import('./pages/GameZone'));
+const UserProfileView = lazy(() => import('./pages/UserProfileView'));
+const NoticesPage = lazy(() => import('./pages/NoticesPage'));
 
 const FallbackLoader = () => (
   <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#0f172a] flex-col gap-4">
@@ -60,6 +64,10 @@ export default function App() {
                   <Route path="news/:id" element={<NewsBlogDetails type="news" />} />
                   <Route path="blog" element={<GenericNewsBlog type="blog" />} />
                   <Route path="blog/:id" element={<NewsBlogDetails type="blog" />} />
+                  <Route path="community" element={<Community />} />
+                  <Route path="game-zone" element={<GameZone />} />
+                  <Route path="notices" element={<NoticesPage />} />
+                  <Route path="user/:uid" element={<UserProfileView />} />
                   <Route path="privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="terms" element={<TermsOfService />} />
                   <Route path="*" element={<NotFound />} />
