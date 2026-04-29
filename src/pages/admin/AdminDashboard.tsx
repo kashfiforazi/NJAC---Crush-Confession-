@@ -329,12 +329,17 @@ export default function AdminDashboard() {
       const payload: any = {
         content: createData.content,
         category: createData.category,
-        nickname: 'NJAC ADMIN',
+        nickname: adminProfile.displayName || 'NJAC ADMIN',
+        authorName: adminProfile.displayName || 'NJAC ADMIN',
+        authorUsername: 'njac_official',
+        authorPhotoURL: adminProfile.photoURL || null,
+        authorVerified: true,
+        isAdmin: true,
         status: 'published',
         createdAt: serverTimestamp(),
         viewsCount: 0,
         reactionCounts: { like: 0, love: 0, sad: 0, wow: 0, haha: 0 },
-        authorUid: user?.uid,
+        authorUid: 'admin', // Official admin identity
       };
       if (createData.title.trim()) payload.title = createData.title.trim();
       if (createData.imageUrl) payload.imageUrl = createData.imageUrl;

@@ -16,23 +16,28 @@ service cloud.firestore {
     // Validation definitions
     function isPostValid(data) {
       return data.keys().hasAll(['content', 'category', 'status', 'createdAt', 'viewsCount', 'authorUid']) 
-          && (!data.keys().hasAny(['title']) || (data.title is string && data.title.size() <= 200))
+          && (!data.keys().hasAny(['title']) || (data.title is string || data.title == null))
           && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
           && data.category is string && data.category.size() > 0 && data.category.size() <= 50
           && data.status in ['pending', 'published', 'rejected']
           && data.createdAt is timestamp
           && data.viewsCount is number
-          && data.authorUid == request.auth.uid
+          && (data.authorUid == request.auth.uid || (data.authorUid == 'admin' && isAdmin()))
           && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50))
           && (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string && data.imageUrl.size() <= 1000))
           && (!data.keys().hasAny(['slug']) || (data.slug is string && data.slug.size() <= 200))
-          && (!data.keys().hasAny(['reactionCounts']) || data.reactionCounts is map);
+          && (!data.keys().hasAny(['reactionCounts']) || data.reactionCounts is map)
+          && (!data.keys().hasAny(['authorName']) || (data.authorName is string && data.authorName.size() <= 100))
+          && (!data.keys().hasAny(['authorUsername']) || (data.authorUsername is string && data.authorUsername.size() <= 50))
+          && (!data.keys().hasAny(['authorPhotoURL']) || (data.authorPhotoURL is string || data.authorPhotoURL == null))
+          && (!data.keys().hasAny(['authorVerified']) || (data.authorVerified is bool))
+          && (!data.keys().hasAny(['isAdmin']) || (data.isAdmin is bool));
     }
 
     function isCommentValid(data) {
        return data.keys().hasAll(['postId', 'authorUid', 'content', 'createdAt'])
           && data.postId is string
-          && data.authorUid == request.auth.uid
+          && (data.authorUid == request.auth.uid || (data.authorUid == 'admin' && isAdmin()))
           && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
           && data.createdAt is timestamp
           && (!data.keys().hasAny(['nickname']) || (data.nickname is string && data.nickname.size() <= 50))
@@ -93,8 +98,11 @@ service cloud.firestore {
     }
 
     match /community_messages/{messageId} {
-      allow read: if true;
-      allow create: if isSignedIn() && incoming().authorUid == request.auth.uid && incoming().content.size() <= 500;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+                    && incoming().authorUid == request.auth.uid 
+                    && incoming().content.size() <= 4000
+                    && incoming().createdAt == request.time;
       allow delete: if isAdmin();
     }
 
@@ -106,6 +114,21 @@ service cloud.firestore {
     match /adminSettings/{id} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /conversations/{convId} {
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.participants || ('admin' in resource.data.participants && isAdmin()));
+      allow create: if isSignedIn() && (request.auth.uid in request.resource.data.participants || ('admin' in request.resource.data.participants && isAdmin()));
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.participants || ('admin' in resource.data.participants && isAdmin()));
+    }
+
+    match /messages/{msgId} {
+      allow read: if isSignedIn() 
+                  && (request.auth.uid in resource.data.participants || ('admin' in resource.data.participants && isAdmin()));
+      allow create: if isSignedIn() 
+                    && (request.resource.data.senderId == request.auth.uid || (request.resource.data.senderId == 'admin' && isAdmin()))
+                    && (request.auth.uid in request.resource.data.participants || ('admin' in request.resource.data.participants && isAdmin()))
+                    && request.resource.data.createdAt == request.time;
     }
 
     match /settings/{settingId} {

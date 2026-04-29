@@ -425,7 +425,7 @@ function PostCard({ post, onUpdateStatus, onDelete }: { post: any, key?: any, on
   // Reaction total
   const totalReactions = Object.values(post.reactionCounts || {}).reduce((a: any, b: any) => a + b, 0) as number;
   const hahaCount = post.reactionCounts?.haha || 0;
-  const isAdminPost = post.nickname === 'NJAC ADMIN';
+  const isAdminPost = post.authorUid === 'admin' || post.isAdmin === true;
   const { isAdmin } = useAuth();
   const [showAdminMenu, setShowAdminMenu] = useState(false);
 
@@ -451,13 +451,37 @@ function PostCard({ post, onUpdateStatus, onDelete }: { post: any, key?: any, on
       <div className="absolute -top-10 -right-10 w-20 h-20 bg-gradient-to-bl from-primary-400/20 to-transparent blur-2xl rounded-full pointer-events-none"></div>
 
       <div className="flex justify-between items-start mb-4 relative z-20">
-        <div className="flex items-center space-x-2">
-          <span className="inline-block px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-xs font-bold uppercase tracking-wider">
-            {post.category}
-          </span>
-          <span className="text-xs text-slate-400">
-            {post.createdAt?.toDate ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-          </span>
+        <div className="flex items-center space-x-3">
+          {isAdminPost && (
+            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0 overflow-hidden border border-primary-500/20 shadow-lg shadow-primary-500/5">
+              {post.authorPhotoURL ? (
+                <img src={post.authorPhotoURL} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-primary-500 text-white">
+                  <BadgeCheck className="w-5 h-5" />
+                </div>
+              )}
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-1.5">
+              {isAdminPost && (
+                <>
+                  <span className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white">{post.authorName || 'NJAC ADMIN'}</span>
+                  <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
+                </>
+              )}
+              <span className="inline-block px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-bold uppercase tracking-wider">
+                {post.category}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              {isAdminPost && <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">@njac_official</span>}
+              <span className="text-[10px] text-slate-400 font-medium">
+                {post.createdAt?.toDate ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+              </span>
+            </div>
+          </div>
         </div>
         
         {isAdmin && (
@@ -495,13 +519,6 @@ function PostCard({ post, onUpdateStatus, onDelete }: { post: any, key?: any, on
       <p className="text-slate-800 font-medium dark:text-slate-200 line-clamp-3 mb-6 relative z-10">
         {post.content}
       </p>
-
-      {isAdminPost && (
-        <div className="flex items-center space-x-1.5 text-blue-500 font-bold text-sm mb-4">
-           <span>NJAC ADMIN</span>
-           <BadgeCheck className="w-4 h-4" />
-        </div>
-      )}
 
       <div className="flex items-center justify-between text-sm text-slate-600 font-bold border-t border-slate-100 dark:border-slate-800 pt-4">
         <div className="flex items-center space-x-6">

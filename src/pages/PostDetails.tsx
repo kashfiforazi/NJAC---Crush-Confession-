@@ -116,10 +116,14 @@ export default function PostDetails() {
         commentsData.forEach((c: any) => { if (c.authorUid) uids.add(c.authorUid); });
 
         const info: Record<string, any> = {};
-        const userPromises = Array.from(uids).map(uid => getDoc(doc(db, 'users', uid)));
+        const userPromises = Array.from(uids).map(userId => {
+          if (userId === 'admin') return getDoc(doc(db, 'adminSettings', 'profile'));
+          return getDoc(doc(db, 'users', userId));
+        });
         const userSnaps = await Promise.all(userPromises);
-        userSnaps.forEach(snap => {
-          if (snap.exists()) info[snap.id] = snap.data();
+        userSnaps.forEach((snap, idx) => {
+          const userId = Array.from(uids)[idx];
+          if (snap.exists()) info[userId] = snap.id === 'profile' ? { ...snap.data(), id: 'admin', isAdmin: true, isVerified: true } : snap.data();
         });
         setAuthorsInfo(info);
       } catch (error) {
@@ -166,7 +170,7 @@ export default function PostDetails() {
       const isPostAsAdmin = isAdmin && useOfficialIdentity;
       const commentData: any = {
         postId: actualPostId,
-        authorUid: user.uid,
+        authorUid: isPostAsAdmin ? 'admin' : user.uid,
         content: newComment.trim(),
         nickname: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (isAnonymousComment ? 'Anonymous' : (commenterName.trim() || user.displayName || 'Anonymous')),
         authorName: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (isAnonymousComment ? 'Anonymous' : (user.displayName || 'Anonymous')),
@@ -200,7 +204,7 @@ export default function PostDetails() {
       const commentData: any = {
         postId: actualPostId,
         parentId: commentId,
-        authorUid: user.uid,
+        authorUid: isPostAsAdmin ? 'admin' : user.uid,
         content: replyText.trim(),
         nickname: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (replyIsAnonymous ? 'Anonymous' : (commenterName.trim() || user.displayName || 'Anonymous')),
         authorName: isPostAsAdmin ? (adminSettings?.displayName || 'NJAC ADMIN') : (replyIsAnonymous ? 'Anonymous' : (user.displayName || 'Anonymous')),
@@ -287,23 +291,26 @@ export default function PostDetails() {
         </div>
 
         <div className="flex items-center space-x-3 text-sm text-slate-500 mb-8">
-          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden shrink-0">
-             {postAuthor?.photoURL && post.nickname !== 'NJAC ADMIN' ? (
-                <img src={postAuthor.photoURL} alt="" className="w-full h-full object-cover" />
+          <div className={`w-12 h-12 rounded-2xl overflow-hidden shrink-0 shadow-lg ${post.authorUid === 'admin' ? 'bg-primary-500 p-0.5' : 'bg-slate-200 dark:bg-slate-800'}`}>
+             {(postAuthor?.photoURL || post.authorPhotoURL) && (post.authorUid === 'admin' || !post.isAnonymous) ? (
+                <img src={post.authorPhotoURL || postAuthor.photoURL} alt="" className="w-full h-full object-cover rounded-[calc(0.75rem-2px)]" />
              ) : (
-                <div className="w-full h-full flex items-center justify-center font-bold text-slate-400">
+                <div className="w-full h-full flex items-center justify-center font-black text-slate-400 text-lg">
                   {post.nickname?.[0]?.toUpperCase() || 'A'}
                 </div>
              )}
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className={`font-bold ${post.nickname === 'NJAC ADMIN' ? 'text-blue-500' : 'text-slate-900 dark:text-white'}`}>
-                {post.nickname || 'Anonymous'}
+              <span className={`font-black uppercase tracking-tight ${post.authorUid === 'admin' ? 'text-primary-600 dark:text-primary-400' : 'text-slate-900 dark:text-white'}`}>
+                {post.authorUid === 'admin' ? (postAuthor?.displayName || 'NJAC ADMIN') : (post.nickname || 'Anonymous')}
               </span>
-              {(postAuthor?.isVerified || post.nickname === 'NJAC ADMIN') && <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />}
+              {(postAuthor?.isVerified || post.authorUid === 'admin') && <BadgeCheck className="w-4.5 h-4.5 text-blue-500 fill-blue-500/10" />}
             </div>
-            <span className="text-xs">Author</span>
+            <div className="flex items-center gap-2">
+              {post.authorUid === 'admin' && <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">@njac_official</span>}
+              <span className="text-[10px] font-bold uppercase text-slate-400">Official Author</span>
+            </div>
           </div>
         </div>
 
@@ -411,11 +418,11 @@ export default function PostDetails() {
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5 line-height-1">
                         <span className={`font-bold text-sm ${isCommentAdmin ? 'text-primary-600 dark:text-primary-400' : ''}`}>
-                          {isCommentAdmin ? 'NJAC ADMIN' : (comment.nickname || 'Anonymous')}
+                          {isCommentAdmin ? (authorsInfo['admin']?.displayName || 'NJAC ADMIN') : (comment.nickname || 'Anonymous')}
                         </span>
                         {isCommentAdmin && (
-                          <span className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 text-[8px] font-black uppercase tracking-widest rounded-md">
-                            ADMIN
+                          <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                            @njac_official
                           </span>
                         )}
                         {isCommentVerified && (

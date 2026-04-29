@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, setDoc, deleteDoc, serverTimestamp, increment, updateDoc, limit } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import { User as UserIcon, Heart, BadgeCheck, MessageCircle, Calendar, MapPin, Hash, Phone, FileText } from 'lucide-react';
+import { User as UserIcon, Heart, BadgeCheck, MessageCircle, Calendar, MapPin, Hash, Phone, FileText, Edit3 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,7 @@ export default function UserProfileView() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followsMe, setFollowsMe] = useState(false);
   const [followsLoading, setFollowsLoading] = useState(false);
 
   useEffect(() => {
@@ -45,6 +46,9 @@ export default function UserProfileView() {
         if (user && uid !== user.uid) {
           const followSnap = await getDoc(doc(db, 'follows', `${user.uid}_${uid}`));
           setIsFollowing(followSnap.exists());
+
+          const followsMeSnap = await getDoc(doc(db, 'follows', `${uid}_${user.uid}`));
+          setFollowsMe(followsMeSnap.exists());
         }
       } catch (err) {
         handleFirestoreError(err, OperationType.GET, 'user_profile');
@@ -122,8 +126,11 @@ export default function UserProfileView() {
                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                  <h1 className="text-3xl font-black font-heading tracking-tight text-slate-900 dark:text-white uppercase">{profile.displayName}</h1>
                  {profile.isVerified && <BadgeCheck className="w-6 h-6 text-blue-500 fill-blue-500/10" />}
+                 {user && user.uid !== profile.id && isFollowing && followsMe && (
+                   <span className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black uppercase tracking-tighter rounded ml-2 shadow-lg shadow-emerald-500/20">Friends</span>
+                 )}
                </div>
-               <p className="text-slate-500 font-bold tracking-widest text-xs uppercase mb-4">@{profile.username || 'njac_user'}</p>
+               <p className="text-slate-500 font-bold tracking-widest text-xs uppercase mb-4">@{uid === 'admin' ? 'njac_official' : (profile.username || 'njac_user')}</p>
                
                <div className="flex flex-wrap justify-center md:justify-start gap-6">
                  <div className="text-center group cursor-pointer">
@@ -140,17 +147,35 @@ export default function UserProfileView() {
                  </div>
                </div>
              </div>
-             <div className="pb-4">
-               {user && user.uid !== profile.id ? (
-                 <button 
-                  onClick={toggleFollow}
-                  disabled={followsLoading}
-                  className={`px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' : 'bg-primary-500 text-white shadow-primary-500/20 hover:bg-primary-600 hover:-translate-y-0.5'}`}
-                 >
-                   {isFollowing ? 'Unfollow' : 'Follow User'}
-                 </button>
+             <div className="pb-4 flex flex-col sm:flex-row gap-3">
+               {user && user.uid !== (profile.id === 'admin' ? 'admin' : profile.id) ? (
+                 <>
+                   <button 
+                    onClick={toggleFollow}
+                    disabled={followsLoading}
+                    className={`px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' : 'bg-primary-500 text-white shadow-primary-500/20 hover:bg-primary-600 hover:-translate-y-0.5'}`}
+                   >
+                     {isFollowing ? 'Unfollow' : 'Follow User'}
+                   </button>
+                   <Link 
+                    to={`/chat/${profile.id}`}
+                    className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:-translate-y-0.5 transition-all shadow-xl"
+                   >
+                    <MessageCircle className="w-4 h-4" />
+                    Message
+                   </Link>
+                 </>
                ) : user?.uid === profile.id && (
-                 <Link to="/profile" className="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold uppercase tracking-widest text-xs">Edit My Profile</Link>
+                 <div className="flex flex-wrap gap-3">
+                   <Link to="/profile" className="px-8 py-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2">
+                      <Edit3 className="w-4 h-4 text-primary-500" />
+                      Edit Profile
+                   </Link>
+                   <Link to={`/chat/${profile.id}`} className="px-8 py-3 bg-primary-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:-translate-y-0.5 transition-all shadow-xl shadow-primary-500/20">
+                     <MessageCircle className="w-4 h-4" />
+                     Send Message
+                   </Link>
+                 </div>
                )}
              </div>
           </div>

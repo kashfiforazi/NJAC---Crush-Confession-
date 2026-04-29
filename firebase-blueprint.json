@@ -214,6 +214,32 @@
     "/adminSettings/{id}": {
       "schema": { "$ref": "#/entities/AdminProfile" },
       "description": "Stores global admin identity configurations."
+    },
+    "/conversations/{convId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "participants": { "type": "array", "items": { "type": "string" } },
+          "lastMessage": { "type": "string" },
+          "updatedAt": { "type": "timestamp" }
+        }
+      },
+      "description": "Stores active chat threads between users."
+    },
+    "/messages/{msgId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "conversationId": { "type": "string" },
+          "participants": { "type": "array", "items": { "type": "string" } },
+          "senderId": { "type": "string" },
+          "receiverId": { "type": "string" },
+          "content": { "type": "string" },
+          "createdAt": { "type": "timestamp" }
+        },
+        "required": ["conversationId", "participants", "senderId", "receiverId", "content", "createdAt"]
+      },
+      "description": "Stores individual chat messages. Only readable for 24 hours."
     }
   }
 }

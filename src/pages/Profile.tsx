@@ -4,7 +4,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, limit } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { LogOut, User as UserIcon, Heart, MessageCircle, Edit2, Check, X, BadgeCheck, MapPin, Phone, Hash, FileText, Search as SearchIcon, AtSign as AtIcon } from 'lucide-react';
+import { LogOut, User as UserIcon, Heart, MessageCircle, Edit2, Check, X, BadgeCheck, MapPin, Phone, Hash, FileText, Search as SearchIcon, AtSign as AtIcon, Bell } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { updateProfile } from 'firebase/auth';
 import { Link, useNavigate } from 'react-router-dom';
@@ -212,9 +212,23 @@ export default function Profile() {
                  </div>
               </div>
 
-              <div className="w-full flex flex-col gap-3">
-                <button onClick={() => setIsEditing(true)} className="w-full py-3 bg-primary-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20">Edit Profile</button>
-                <button onClick={handleLogout} className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold uppercase tracking-widest text-xs border border-transparent hover:border-red-500/50 hover:text-red-500 transition-all">Logout</button>
+              <div className="w-full grid grid-cols-2 gap-3">
+                <button onClick={() => setIsEditing(true)} className="col-span-2 py-3 bg-primary-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2">
+                  <Edit2 className="w-4 h-4" />
+                  Edit Profile
+                </button>
+                <Link to="/inbox" className="py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-all">
+                  <MessageCircle className="w-4 h-4" />
+                  Inbox
+                </Link>
+                <Link to="/notices" className="py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-all">
+                  <Bell className="w-4 h-4" />
+                  Notices
+                </Link>
+                <button onClick={handleLogout} className="col-span-2 py-3 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 rounded-xl font-bold uppercase tracking-widest text-xs border border-dashed border-slate-200 dark:border-slate-800 hover:border-red-500/50 hover:text-red-500 transition-all flex items-center justify-center gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Logout Account
+                </button>
               </div>
             </div>
           </div>
@@ -235,15 +249,22 @@ export default function Profile() {
             </div>
             <div className="space-y-3">
                {searchResults.map(res => (
-                 <Link key={res.id} to={`/user/${res.id}`} className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                       {res.photoURL && <img src={res.photoURL} alt="" className="w-full h-full object-cover" />}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase truncate max-w-[120px]">{res.displayName}</p>
-                      <p className="text-[9px] font-bold text-slate-400">@{res.username || 'user'}</p>
-                    </div>
-                 </Link>
+                 <div key={res.id} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors group">
+                    <Link to={`/user/${res.id}`} className="flex items-center gap-3 overflow-hidden">
+                       <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0">
+                          {res.photoURL && <img src={res.photoURL} alt="" className="w-full h-full object-cover" />}
+                       </div>
+                       <div className="overflow-hidden">
+                         <p className="text-xs font-bold uppercase truncate">{res.displayName}</p>
+                         <p className="text-[9px] font-bold text-slate-400">@{res.username || 'user'}</p>
+                       </div>
+                    </Link>
+                    {res.id !== user.uid && (
+                      <Link to={`/chat/${res.id}`} className="p-2 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors">
+                        <MessageCircle className="w-4 h-4" />
+                      </Link>
+                    )}
+                 </div>
                ))}
                {searchQuery && searchResults.length === 0 && !isSearching && <p className="text-[10px] text-center text-slate-400 uppercase font-bold">No results Found</p>}
             </div>

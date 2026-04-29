@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { Moon, Sun, Heart, Edit3, Menu, X, MoreVertical, Newspaper, BookOpen, Clock, Info, Shield, Home, TrendingUp, Grid, Bell, Users, Gamepad2, Search as SearchIcon } from 'lucide-react';
+import { Moon, Sun, Heart, Edit3, Menu, X, MoreVertical, Newspaper, BookOpen, Clock, Info, Shield, Home, TrendingUp, Grid, Bell, Users, Gamepad2, Search as SearchIcon, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';

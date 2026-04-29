@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, getDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, getDoc, doc, deleteDoc, where } from 'firebase/firestore';
 import { Send, BadgeCheck, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -16,9 +16,22 @@ export default function Community() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'community_messages'), orderBy('createdAt', 'desc'), limit(50));
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const q = query(
+      collection(db, 'community_messages'), 
+      where('createdAt', '>=', twentyFourHoursAgo)
+    );
+
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Sort client-side to avoid index requirements for now
+      msgs.sort((a: any, b: any) => {
+        const t1 = a.createdAt?.toMillis?.() || 0;
+        const t2 = b.createdAt?.toMillis?.() || 0;
+        return t1 - t2;
+      });
+
       setMessages(msgs);
       setLoading(false);
 
@@ -34,6 +47,9 @@ export default function Community() {
         }));
         setAuthorsInfo(info);
       }
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'community_messages');
+      setLoading(false);
     });
 
     return unsubscribe;

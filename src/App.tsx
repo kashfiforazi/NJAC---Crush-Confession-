@@ -27,6 +27,8 @@ const Community = lazy(() => import('./pages/Community'));
 const GameZone = lazy(() => import('./pages/GameZone'));
 const UserProfileView = lazy(() => import('./pages/UserProfileView'));
 const NoticesPage = lazy(() => import('./pages/NoticesPage'));
+const Inbox = lazy(() => import('./pages/Inbox'));
+const ChatRoom = lazy(() => import('./pages/ChatRoom'));
 
 const FallbackLoader = () => (
   <div className="fixed inset-0 z-50 flex justify-center items-center bg-[#0f172a] flex-col gap-4">
@@ -68,6 +70,8 @@ export default function App() {
                   <Route path="game-zone" element={<GameZone />} />
                   <Route path="notices" element={<NoticesPage />} />
                   <Route path="user/:uid" element={<UserProfileView />} />
+                  <Route path="inbox" element={<Inbox />} />
+                  <Route path="chat/:recipientId" element={<ChatRoom />} />
                   <Route path="privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="terms" element={<TermsOfService />} />
                   <Route path="*" element={<NotFound />} />
