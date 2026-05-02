@@ -11,10 +11,9 @@ export default function Layout() {
 
   useEffect(() => {
     if (adClient) {
-      const scriptId = 'adsbygoogle-script';
-      if (!document.getElementById(scriptId)) {
+      if (!document.getElementById('adsbygoogle-script')) {
         const script = document.createElement('script');
-        script.id = scriptId;
+        script.id = 'adsbygoogle-script';
         script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`;
         script.async = true;
         script.crossOrigin = "anonymous";
