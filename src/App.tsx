@@ -10,6 +10,7 @@ const Home = lazy(() => import('./pages/Home'));
 const PostDetails = lazy(() => import('./pages/PostDetails'));
 const SubmitConfession = lazy(() => import('./pages/SubmitConfession'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const Login = lazy(() => import('./pages/Login'));
 const SignUp = lazy(() => import('./pages/SignUp'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -77,6 +78,7 @@ export default function App() {
                   <Route path="*" element={<NotFound />} />
                 </Route>
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin-login" element={<AdminLogin />} />
               </Routes>
             </Suspense>
             <Toaster position="bottom-center" />

@@ -308,33 +308,28 @@ function SidebarAd() {
 
   useEffect(() => {
     let timeoutId: any;
+    // Check if adsbygoogle exists and is an array or object
     if (adClient && adSlotSidebar && !adPushed) {
       const checkAndPushAd = () => {
         if (adRef.current && adRef.current.offsetWidth > 0) {
-          // If AdSense has already processed this ins element, we don't need to push again
-          if (adRef.current.getAttribute('data-adsbygoogle-status') === 'done') {
-            setAdPushed(true);
-            return;
-          }
-          
-          try {
-            ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-            setAdPushed(true);
-          } catch (e: any) {
-            console.error("AdSense error inside check", e);
-            // Ignore common adsbygoogle errors
-            const errMsg = typeof e === 'string' ? e : (e.message || '');
-            if (errMsg.includes("already have ads") || errMsg.includes("No slot size") || errMsg.includes("no_div")) {
+          // Verify if adsbygoogle is ready
+          const adsbygoogle = (window as any).adsbygoogle;
+          if (adsbygoogle) {
+            try {
+              adsbygoogle.push({});
               setAdPushed(true);
+            } catch (e: any) {
+              console.error("AdSense Error:", e);
+              // Mark as pushed even on error to prevent infinite retries if it's already filled
+              if (e.message?.includes("already have ads")) {
+                setAdPushed(true);
+              }
             }
           }
-        } else {
-          timeoutId = setTimeout(checkAndPushAd, 200);
         }
       };
       
-      // Delay initial check slightly to let layout settle
-      timeoutId = setTimeout(checkAndPushAd, 100);
+      timeoutId = setTimeout(checkAndPushAd, 500);
     }
     
     return () => {
@@ -347,22 +342,22 @@ function SidebarAd() {
       {/* Ad Slot */}
       {(adClient && adSlotSidebar) ? (
         <div className="glass-card p-4 text-center">
-          <p className="text-xs text-slate-400 mb-2">Advertisement</p>
-          <div className="overflow-hidden rounded-xl w-full min-h-[250px]">
+          <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-3">Sponsor</p>
+          <div className="overflow-hidden rounded-xl w-full min-h-[250px] bg-slate-100/50 dark:bg-slate-800/50 flex items-center justify-center">
              <ins className="adsbygoogle"
                ref={adRef}
                style={{display:"block", width: "100%", height: "250px"}}
                data-ad-client={adClient}
                data-ad-slot={adSlotSidebar}
-               data-ad-format="auto"
+               data-ad-format="rectangle"
                data-full-width-responsive="true"></ins>
           </div>
         </div>
       ) : (
         <div className="glass-card p-4 text-center">
-          <p className="text-xs text-slate-400 mb-2">Advertisement</p>
-          <div className="bg-slate-200 dark:bg-slate-800 h-64 rounded-xl flex items-center justify-center text-slate-400">
-            Ad Slot
+          <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mb-3">Advertisement</p>
+          <div className="bg-slate-200 dark:bg-slate-800 h-64 rounded-xl flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 dark:border-slate-700">
+            <span className="text-xs font-bold uppercase tracking-tighter">Ad Slot Waiting for Config</span>
           </div>
         </div>
       )}

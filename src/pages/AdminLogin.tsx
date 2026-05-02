@@ -6,7 +6,7 @@ import { auth, db } from '../lib/firebase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function Login() {
+export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
   const navigate = useNavigate();

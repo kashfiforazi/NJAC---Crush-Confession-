@@ -41,7 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAdminStatus = async () => {
     if (user) {
+      setLoading(true);
       await checkUserStatus(user.uid);
+      setLoading(false);
     }
   };
 

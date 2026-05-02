@@ -63,7 +63,10 @@ export default function AdminDashboard() {
   const globalSettings = useSettings();
 
   useEffect(() => {
-    if (!loading && (!user || !isAdmin)) navigate('/login');
+    if (!loading && (!user || !isAdmin)) {
+      toast.error('Admin access required');
+      navigate('/admin-login');
+    }
   }, [user, isAdmin, loading, navigate]);
 
   useEffect(() => {
@@ -988,14 +991,26 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <hr className="border-slate-200 dark:border-slate-700" />
-              <h3 className="font-bold text-lg">Google Ads</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg">Google Ads</h3>
+                <span className="text-[10px] font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded uppercase">AdSense Ready</span>
+              </div>
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl space-y-2">
+                 <p className="text-xs font-bold text-blue-800 dark:text-blue-200">How to show Ads:</p>
+                 <ol className="text-[10px] text-blue-700 dark:text-blue-300 list-decimal list-inside space-y-1">
+                   <li>Enter your Publisher ID (e.g., ca-pub-1234567890) below.</li>
+                   <li>Create a "Display Ad" unit in your AdSense dashboard and copy the "ad-slot" ID.</li>
+                   <li>Paste the slot ID in the Sidebar field below.</li>
+                   <li>Important: Ads will only show if your domain is approved by Google AdSense.</li>
+                 </ol>
+              </div>
               <div>
                 <label className="block text-sm font-semibold mb-1">Ad Client ID (ca-pub-xxx)</label>
-                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={settingsForm.adClient} onChange={e=>setSettingsForm({...settingsForm, adClient: e.target.value})} />
+                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-sm" value={settingsForm.adClient} onChange={e=>setSettingsForm({...settingsForm, adClient: e.target.value})} placeholder="ca-pub-xxxxxxxxxxxxxxxx" />
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-1">Sidebar Ad Slot ID</label>
-                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={settingsForm.adSlotSidebar} onChange={e=>setSettingsForm({...settingsForm, adSlotSidebar: e.target.value})} />
+                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-sm" value={settingsForm.adSlotSidebar} onChange={e=>setSettingsForm({...settingsForm, adSlotSidebar: e.target.value})} placeholder="1234567890" />
               </div>
 
               <button type="submit" disabled={savingSettings} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">{savingSettings ? 'Saving...' : 'Save Settings'}</button>

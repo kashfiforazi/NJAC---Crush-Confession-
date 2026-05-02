@@ -23,6 +23,7 @@ export default function Footer() {
           <Link to="/blog" className="hover:text-primary-500 transition-colors">Blog</Link>
           <Link to="/privacy-policy" className="hover:text-primary-500 transition-colors">Privacy Policy</Link>
           <Link to="/terms" className="hover:text-primary-500 transition-colors">Terms of Service</Link>
+          <Link to="/admin-login" className="hover:text-primary-500 transition-colors opacity-30 text-[8px] uppercase tracking-tighter self-end mb-1">Staff</Link>
         </div>
         
         <div className="text-sm text-slate-500 dark:text-slate-400">

@@ -37,6 +37,22 @@
   .bg-gradient-romantic {
     @apply bg-gradient-to-br from-rose-400 to-orange-400;
   }
+
+  .animate-enter {
+    animation: enter 0.2s ease-out;
+  }
+  .animate-leave {
+    animation: leave 0.15s ease-in forwards;
+  }
+
+  @keyframes enter {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @keyframes leave {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(0.9); opacity: 0; }
+  }
 }
 
 body {

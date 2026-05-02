@@ -98,7 +98,7 @@ service cloud.firestore {
     }
 
     match /community_messages/{messageId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() 
                     && incoming().authorUid == request.auth.uid 
                     && incoming().content.size() <= 4000
@@ -164,12 +164,12 @@ service cloud.firestore {
       allow create: if (isSignedIn() && isPostValid(incoming()) && incoming().status == 'pending' && incoming().viewsCount == 0)
                     || (isAdmin() && isPostValid(incoming()));
       
-      // Update: Admins can update anything. Users can only increment views and reactions
-      allow update: if isSignedIn() && (
-        isAdmin() || 
-        (incoming().diff(existing()).affectedKeys().hasOnly(['viewsCount']) && incoming().viewsCount > existing().viewsCount) ||
-        (incoming().diff(existing()).affectedKeys().hasOnly(['reactionCounts']))
-      );
+      // Update: Admins can update anything.
+      // ViewsCount can be updated by anyone.
+      // ReactionCounts require being signed in.
+      allow update: if isAdmin() || 
+                    (incoming().diff(existing()).affectedKeys().hasOnly(['viewsCount']) && incoming().viewsCount > existing().viewsCount) ||
+                    (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['reactionCounts']));
 
       allow delete: if isAdmin();
 
