@@ -6,6 +6,7 @@ import { Send, BadgeCheck, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import AdSlot from '../components/AdSlot';
 
 export default function Community() {
   const { user, isAdmin, isBanned } = useAuth();
@@ -89,7 +90,9 @@ export default function Community() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-200px)] flex flex-col glass-card overflow-hidden">
+    <div className="max-w-4xl mx-auto space-y-4">
+      <AdSlot type="native" className="!my-0" />
+      <div className="h-[calc(100vh-320px)] flex flex-col glass-card overflow-hidden">
       <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black font-heading tracking-tight">COMMUNITY CHAT</h1>
@@ -172,6 +175,7 @@ export default function Community() {
             <Send className="w-5 h-5" />
           </button>
         </form>
+      </div>
       </div>
     </div>
   );

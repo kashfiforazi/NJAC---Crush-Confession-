@@ -1,7 +1,7 @@
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { Moon, Sun, Heart, Edit3, Menu, X, MoreVertical, Newspaper, BookOpen, Clock, Info, Shield, Home, TrendingUp, Grid, Bell, Users, Gamepad2, Search as SearchIcon, MessageCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { collection, query, orderBy, limit, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -15,14 +15,6 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopMoreOpen, setIsDesktopMoreOpen] = useState(false);
   const [showNotices, setShowNotices] = useState(false);
-  const [notices, setNotices] = useState<any[]>([]);
-
-  useEffect(() => {
-    const q = query(collection(db, 'notices'), orderBy('createdAt', 'desc'), limit(5));
-    return onSnapshot(q, (snapshot) => {
-      setNotices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-  }, []);
   const [clickCount, setClickCount] = useState(0);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -61,55 +53,63 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 left-0 right-0 z-50 glass border-b border-white/20 dark:border-slate-800/50">
+    <header className="sticky top-0 left-0 right-0 z-50 glass border-b border-white/20 dark:border-slate-800/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          <Link to="/" onClick={() => setClickCount(c => c + 1)} className="flex items-center space-x-2 cursor-pointer select-none min-w-0 flex-1 md:flex-initial">
-            {headerLogo ? (
-              <img src={headerLogo} alt="Logo" className="h-8 w-auto object-contain flex-shrink-0" />
-            ) : (
-              <Heart className="w-8 h-8 text-primary-500 fill-primary-500 flex-shrink-0" />
-            )}
-            <span className="font-heading font-bold text-[15px] sm:text-lg md:text-xl tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+        <div className="flex justify-between items-center h-16 md:h-20 transition-all duration-300 gap-4">
+          <Link to="/" onClick={() => setClickCount(c => c + 1)} className="flex items-center space-x-2 group shrink-0">
+            <div className="relative">
+              {headerLogo ? (
+                <img src={headerLogo} alt="Logo" className="h-9 w-auto object-contain transition-transform group-hover:scale-110" />
+              ) : (
+                <div className="bg-gradient-to-tr from-primary-500 to-rose-500 p-2 rounded-xl shadow-lg shadow-primary-500/20 group-hover:shadow-primary-500/40 transition-all">
+                  <Heart className="w-5 h-5 text-white fill-white/20" />
+                </div>
+              )}
+            </div>
+            <span className="font-heading font-black text-xl tracking-tighter text-slate-900 dark:text-white flex items-center gap-1 whitespace-nowrap">
               {headerTitle ? headerTitle : (
-                <>NJAC <span className="text-primary-500">Crush</span></>
+                <>
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">NJAC</span>
+                  <span className="text-primary-500">Crush</span>
+                </>
               )}
             </span>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center space-x-8 relative flex-shrink-0 ml-8">
-            <Link to="/" className="text-sm font-medium hover:text-primary-500 transition-colors">Home</Link>
-            <Link to="/category/crush" className="text-sm font-medium hover:text-primary-500 transition-colors">Trending</Link>
-            <Link to="/leaderboard" className="text-sm font-medium hover:text-primary-500 transition-colors">Leaderboard</Link>
-            <Link to="/community" className="text-sm font-medium hover:text-primary-500 transition-colors">Community</Link>
-            <Link to="/game-zone" className="text-sm font-medium hover:text-primary-500 transition-colors">Game Zone</Link>
-            <Link to="/submit" className="flex items-center space-x-1 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+          <nav className="hidden md:flex items-center space-x-1 lg:space-x-4">
+            <NavLink to="/">Home</NavLink>
+            <NavLink to="/category/crush">Trending</NavLink>
+            <NavLink to="/leaderboard">Leaderboard</NavLink>
+            <NavLink to="/community">Community</NavLink>
+            <NavLink to="/game-zone">Games</NavLink>
+            
+            <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2"></div>
+            
+            <Link to="/submit" className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold hover:scale-105 active:scale-95 transition-all shadow-md">
               <Edit3 className="w-4 h-4" />
               <span>Submit</span>
             </Link>
+
             {user && !user.isAnonymous ? (
-              <Link to="/profile" className="flex items-center space-x-1 px-5 py-2.5 rounded-full bg-slate-800 text-white text-sm font-bold shadow-lg transition-all hover:-translate-y-0.5">Profile</Link>
-            ) : (
-              <Link to="/login" className="flex items-center space-x-1 px-5 py-2.5 rounded-full bg-primary-500 text-white text-sm font-bold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 transition-all hover:-translate-y-0.5">Login / Sign Up</Link>
-            )}
-            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
-            </button>
-            <div className="relative">
-              <Link 
-                to="/notices"
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative block"
-              >
-                <Bell className="w-5 h-5 text-primary-500" />
-                {notices.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>}
+              <Link to="/profile" className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-black uppercase tracking-widest shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-all hover:-translate-y-0.5 active:translate-y-0">
+                <Users className="w-4 h-4" />
+                <span>Profile</span>
               </Link>
-            </div>
-            <div className="relative">
-              <button onClick={() => setIsDesktopMoreOpen(!isDesktopMoreOpen)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                <MoreVertical className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-              </button>
-              <AnimatePresence>
+            ) : (
+              <LoginLink to="/login">Join Us</LoginLink>
+            )}
+
+            <div className="flex items-center gap-1 ml-2">
+              <IconButton onClick={toggleTheme}>
+                {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+              </IconButton>
+              
+              <div className="relative">
+                <IconButton onClick={() => setIsDesktopMoreOpen(!isDesktopMoreOpen)}>
+                  <MoreVertical className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                </IconButton>
+                <AnimatePresence>
                 {isDesktopMoreOpen && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -152,14 +152,11 @@ export default function Navbar() {
                 )}
               </AnimatePresence>
             </div>
-          </nav>
+          </div>
+        </nav>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center md:hidden space-x-4 flex-shrink-0 ml-6">
-            <Link to="/notices" className="p-2 text-primary-500 relative">
-               <Bell className="w-5 h-5" />
-               {notices.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>}
-            </Link>
+          <div className="flex items-center md:hidden space-x-2">
             <button onClick={toggleTheme} className="p-2">
               {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
             </button>
@@ -270,5 +267,37 @@ export default function Navbar() {
         </div>
       )}
     </header>
+  );
+}
+
+function NavLink({ to, children }: { to: string, children: React.ReactNode }) {
+  return (
+    <Link to={to} className="px-3 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-primary-500 dark:hover:text-white transition-all rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+      {children}
+    </Link>
+  );
+}
+
+function IconButton({ onClick, children }: { onClick: () => void, children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-400 hover:text-primary-500 active:scale-95">
+      {children}
+    </button>
+  );
+}
+
+function ProfileLink({ to, children }: { to: string, children: React.ReactNode }) {
+  return (
+    <Link to={to} className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-bold shadow-sm transition-all hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-md">
+      {children}
+    </Link>
+  );
+}
+
+function LoginLink({ to, children }: { to: string, children: React.ReactNode }) {
+  return (
+    <Link to={to} className="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-bold shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-all hover:-translate-y-0.5 active:translate-y-0">
+      {children}
+    </Link>
   );
 }

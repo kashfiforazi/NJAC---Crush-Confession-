@@ -6,21 +6,44 @@ import Footer from './Footer';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function Layout() {
-  const { adClient } = useSettings();
+  const { adsterraPopunder, adsterraSocialBar } = useSettings();
   const location = useLocation();
 
   useEffect(() => {
-    if (adClient) {
-      if (!document.getElementById('adsbygoogle-script')) {
-        const script = document.createElement('script');
-        script.id = 'adsbygoogle-script';
-        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`;
-        script.async = true;
-        script.crossOrigin = "anonymous";
-        document.head.appendChild(script);
-      }
-    }
-  }, [adClient]);
+    // Handle site-wide scripts like Popunder and Social Bar
+    const injectScript = (id: string, code: string) => {
+      if (!code || document.getElementById(id)) return;
+      
+      const container = document.createElement('div');
+      container.id = id;
+      container.style.display = 'none'; // Hide the technical container
+      container.innerHTML = code;
+      
+      const fragments = Array.from(container.childNodes);
+      fragments.forEach(node => {
+        if (node.nodeName === 'SCRIPT') {
+          const oldScript = node as HTMLScriptElement;
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          
+          if (oldScript.innerHTML) {
+            newScript.textContent = oldScript.innerHTML;
+          }
+          
+          document.body.appendChild(newScript);
+        } else {
+          document.body.appendChild(node.cloneNode(true));
+        }
+      });
+      
+      document.body.appendChild(container);
+    };
+
+    if (adsterraPopunder) injectScript('adsterra-popunder', adsterraPopunder);
+    if (adsterraSocialBar) injectScript('adsterra-socialbar', adsterraSocialBar);
+  }, [adsterraPopunder, adsterraSocialBar]);
 
   return (
     <div className="min-h-screen flex flex-col font-sans">

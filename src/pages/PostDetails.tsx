@@ -5,8 +5,9 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Heart, Send, Edit, Trash2, BadgeCheck, Clock, Info } from 'lucide-react';
+import { Heart, Send, Edit, Trash2, BadgeCheck, Clock, Info, Share2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import AdSlot from '../components/AdSlot';
 
 export default function PostDetails() {
   const { slug } = useParams();
@@ -249,6 +250,22 @@ export default function PostDetails() {
     }
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: post?.title || 'Confession', url });
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('Link copied!');
+    }
+  };
+
   if (loading) return <div className="py-20 text-center animate-pulse">Loading...</div>;
   if (!post || (post.status !== 'published' && post.authorUid !== user?.uid)) {
     return <div className="py-20 text-center text-xl text-slate-500">Post not found or pending approval.</div>;
@@ -289,6 +306,8 @@ export default function PostDetails() {
         <div className="prose dark:prose-invert max-w-none text-lg text-slate-700 dark:text-slate-300 mb-8 whitespace-pre-wrap">
           {post.content}
         </div>
+
+        <AdSlot type="native" />
 
         <div className="flex items-center space-x-3 text-sm text-slate-500 mb-8">
           <div className={`w-12 h-12 rounded-2xl overflow-hidden shrink-0 shadow-lg ${post.authorUid === 'admin' ? 'bg-primary-500 p-0.5' : 'bg-slate-200 dark:bg-slate-800'}`}>
@@ -332,7 +351,12 @@ export default function PostDetails() {
       {/* Share Section */}
       <div className="glass-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <h3 className="font-bold">Share this confession</h3>
-        <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); }} className="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-bold">Copy Link</button>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button onClick={handleShare} className="flex-1 sm:flex-none px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-bold flex items-center justify-center gap-2">
+            <Share2 className="w-4 h-4" /> Share
+          </button>
+          <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); }} className="flex-1 sm:flex-none px-6 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-bold">Copy Link</button>
+        </div>
       </div>
 
       {/* Comments Section */}

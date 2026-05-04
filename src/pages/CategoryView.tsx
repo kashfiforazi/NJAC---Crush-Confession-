@@ -7,6 +7,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
+import AdSlot from '../components/AdSlot';
+
 export default function CategoryView() {
   const { slug } = useParams();
   const [posts, setPosts] = useState<any[]>([]);
@@ -64,6 +66,8 @@ export default function CategoryView() {
         <h1 className="text-3xl font-heading font-bold capitalize mb-2">{slug} Confessions</h1>
         <p className="text-slate-500">Browse all confessions in the {slug} category.</p>
       </div>
+
+      <AdSlot type="728x90" />
 
       {loading ? (
         <div className="text-center py-12 animate-pulse">Loading...</div>

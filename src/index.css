@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -8,41 +8,55 @@
   --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-handwriting: "Caveat", cursive;
   
-  --color-primary-50: #fff8eb;
-  --color-primary-100: #ffecd1;
-  --color-primary-200: #ffd8a3;
-  --color-primary-300: #ffbe6b;
-  --color-primary-400: #ff9e33;
-  --color-primary-500: #fa7d05;
-  --color-primary-600: #eb6200;
-  --color-primary-700: #c24702;
+  --color-primary-50: #fff8f1;
+  --color-primary-100: #feebdb;
+  --color-primary-200: #fcd5b8;
+  --color-primary-300: #f9b685;
+  --color-primary-400: #f58e4e;
+  --color-primary-500: #f16f25; /* More refined orange */
+  --color-primary-600: #e25719;
+  --color-primary-700: #bb4216;
   
-  --color-romantic-gradient-start: #ff9e33;
-  --color-romantic-gradient-end: #fa7d05;
+  --color-romantic-gradient-start: #ff7e5f;
+  --color-romantic-gradient-end: #feb47b;
 
-  --color-dark-bg: #2a1b15;
-  --color-dark-card: rgba(69, 45, 33, 0.7);
+  --color-dark-bg: #0f172a; /* Sophisticated Slate Blue-Gray */
+  --color-dark-card: rgba(30, 41, 59, 0.7);
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 dark:bg-slate-900/70 dark:border-slate-800/50;
+    @apply bg-white/80 backdrop-blur-xl border border-white/20 dark:bg-slate-900/80 dark:border-slate-800/50;
   }
   .glass-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 dark:bg-slate-900/70 dark:border-slate-800/50 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)];
+    @apply bg-white/90 backdrop-blur-xl border border-white/10 dark:bg-slate-900/90 dark:border-slate-800/50 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-rose-400 to-orange-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-rose-500 to-amber-500;
   }
   .bg-gradient-romantic {
-    @apply bg-gradient-to-br from-rose-400 to-orange-400;
+    @apply bg-gradient-to-br from-orange-500 to-rose-500;
+  }
+  .mask-fade-bottom {
+    mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
   }
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 dark:bg-dark-bg dark:text-slate-100 font-sans antialiased transition-colors duration-300;
+  @apply bg-slate-50 text-slate-900 dark:bg-dark-bg dark:text-slate-100 font-sans antialiased transition-colors duration-500;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  @apply font-heading;
+  @apply font-heading tracking-tight;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300/50 dark:bg-slate-700/50 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors;
 }

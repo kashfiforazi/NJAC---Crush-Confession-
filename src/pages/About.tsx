@@ -1,5 +1,6 @@
 import { useSettings } from '../contexts/SettingsContext';
 import { Facebook, Instagram, MessageCircle, Users } from 'lucide-react';
+import AdSlot from '../components/AdSlot';
 
 export default function About() {
   const { aboutUsText, fbPage1, fbPage2, fbGroup, instagram, messenger } = useSettings();
@@ -19,6 +20,8 @@ export default function About() {
           </>
         )}
       </div>
+
+      <AdSlot type="native" className="!my-0 mb-8" />
 
       <div className="glass-card p-8">
         <h2 className="text-2xl font-bold mb-6 font-heading border-b border-slate-100 dark:border-slate-800 pb-4">Connect With Us</h2>

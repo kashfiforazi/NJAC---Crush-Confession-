@@ -11,9 +11,11 @@ interface SiteSettings {
   founderImage?: string;
   principalImage?: string;
   bannerImage?: string;
-  adClient?: string;
-  adSlotSidebar?: string;
-  adSlotFooter?: string;
+  adsterraNativeBanner?: string;
+  adsterraBanner728x90?: string;
+  adsterraBanner300x250?: string;
+  adsterraPopunder?: string;
+  adsterraSocialBar?: string;
   fbPage1?: string;
   fbPage2?: string;
   fbGroup?: string;

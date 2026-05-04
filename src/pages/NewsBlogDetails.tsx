@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, Share2, Send, Trash2, Video, BadgeCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import AdSlot from '../components/AdSlot';
 
 export default function NewsBlogDetails({ type }: { type: 'news' | 'blog' }) {
   const { id } = useParams();
@@ -72,7 +73,13 @@ export default function NewsBlogDetails({ type }: { type: 'news' | 'blog' }) {
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
-       navigator.share({ title: item?.title, url }).catch(console.error);
+      try {
+        await navigator.share({ title: item?.title, url });
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
     } else {
       navigator.clipboard.writeText(url);
       toast.success('Link copied!');
@@ -127,6 +134,8 @@ export default function NewsBlogDetails({ type }: { type: 'news' | 'blog' }) {
         <div className="prose prose-lg dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
           {item.content}
         </div>
+        
+        <AdSlot type="native" />
       </div>
 
       <div className="glass-card p-8">

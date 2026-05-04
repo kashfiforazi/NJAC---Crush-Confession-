@@ -56,7 +56,9 @@ export default function AdminDashboard() {
   // Settings State
   const [settingsForm, setSettingsForm] = useState({ 
     headerLogo: '', footerLogo: '', headerTitle: '', footerTitle: '', aboutUsText: '', 
-    bannerImage: '', adClient: '', adSlotSidebar: '', founderImage: '', principalImage: '',
+    bannerImage: '', founderImage: '', principalImage: '',
+    adsterraNativeBanner: '', adsterraBanner728x90: '', adsterraBanner300x250: '',
+    adsterraPopunder: '', adsterraSocialBar: '',
     fbPage1: '', fbPage2: '', fbGroup: '', instagram: '', messenger: ''
   });
   const [savingSettings, setSavingSettings] = useState(false);
@@ -119,8 +121,11 @@ export default function AdminDashboard() {
         founderImage: globalSettings.founderImage || '',
         principalImage: globalSettings.principalImage || '',
         bannerImage: globalSettings.bannerImage || '',
-        adClient: globalSettings.adClient || '',
-        adSlotSidebar: globalSettings.adSlotSidebar || '',
+        adsterraNativeBanner: globalSettings.adsterraNativeBanner || '',
+        adsterraBanner728x90: globalSettings.adsterraBanner728x90 || '',
+        adsterraBanner300x250: globalSettings.adsterraBanner300x250 || '',
+        adsterraPopunder: globalSettings.adsterraPopunder || '',
+        adsterraSocialBar: globalSettings.adsterraSocialBar || '',
         fbPage1: globalSettings.fbPage1 || '',
         fbPage2: globalSettings.fbPage2 || '',
         fbGroup: globalSettings.fbGroup || '',
@@ -991,14 +996,28 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <hr className="border-slate-200 dark:border-slate-700" />
-              <h3 className="font-bold text-lg">Google Ads</h3>
-              <div>
-                <label className="block text-sm font-semibold mb-1">Ad Client ID (ca-pub-xxx)</label>
-                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={settingsForm.adClient} onChange={e=>setSettingsForm({...settingsForm, adClient: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">Sidebar Ad Slot ID</label>
-                <input type="text" className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" value={settingsForm.adSlotSidebar} onChange={e=>setSettingsForm({...settingsForm, adSlotSidebar: e.target.value})} />
+              <h3 className="font-bold text-lg">Adsterra Advertisements</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Native Banner Script Code</label>
+                  <textarea className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-xs" value={settingsForm.adsterraNativeBanner} onChange={e=>setSettingsForm({...settingsForm, adsterraNativeBanner: e.target.value})} placeholder="Paste Adsterra Native Banner script here..." rows={3} />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Banner 728x90 Script Code</label>
+                  <textarea className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-xs" value={settingsForm.adsterraBanner728x90} onChange={e=>setSettingsForm({...settingsForm, adsterraBanner728x90: e.target.value})} placeholder="Paste Adsterra 728x90 banner script here..." rows={3} />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Banner 300x250 Script Code</label>
+                  <textarea className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-xs" value={settingsForm.adsterraBanner300x250} onChange={e=>setSettingsForm({...settingsForm, adsterraBanner300x250: e.target.value})} placeholder="Paste Adsterra 300x250 banner script here..." rows={3} />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Popunder Script Code</label>
+                  <textarea className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-xs" value={settingsForm.adsterraPopunder} onChange={e=>setSettingsForm({...settingsForm, adsterraPopunder: e.target.value})} placeholder="Paste Adsterra Popunder script here..." rows={3} />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-400 mb-1">Social Bar Script Code</label>
+                  <textarea className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent font-mono text-xs" value={settingsForm.adsterraSocialBar} onChange={e=>setSettingsForm({...settingsForm, adsterraSocialBar: e.target.value})} placeholder="Paste Adsterra Social Bar script here..." rows={3} />
+                </div>
               </div>
 
               <button type="submit" disabled={savingSettings} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
